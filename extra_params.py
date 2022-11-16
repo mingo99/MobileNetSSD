@@ -22,8 +22,22 @@ def get_fused_model(model):
 def extra_params(device):
     ssd = get_ssd(device)
     fssd = get_fused_model(ssd)
-    # print(fssd)
+    print(fssd)
     print(fssd.state_dict()['backbone.features.0.1.block.0.0.weight'].shape)
+
+def get_fixed_point(float_x, m):
+        x = float_x
+        fixed_x = 0
+        f = 0
+        while(int(x)<(2**m)):
+            if(int(x*2)<(2**m)):
+                x = x*2
+                f += 1
+                continue
+            else:
+                fixed_x = int(x)
+                break
+        return fixed_x, f
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
