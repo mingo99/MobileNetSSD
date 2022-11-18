@@ -3,7 +3,7 @@ import argparse
 import cv2
 import detect_utils
 from PIL import Image
-from model import get_model
+from model import get_model, get_quant_model
 # construct the argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--input', default='input/image_1.jpg', 
@@ -13,8 +13,10 @@ parser.add_argument('-t', '--threshold', default=0.5, type=float,
 args = vars(parser.parse_args())
 
 # define the computation device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = get_model(device)
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
+# model = get_model(device)
+model = get_quant_model()
 
 # read the image
 image = Image.open(args['input'])

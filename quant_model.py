@@ -14,6 +14,80 @@ from torchvision.models.detection.backbone_utils import _validate_trainable_laye
 from torchvision.models.vgg import VGG, VGG16_Weights, vgg16
 from torchvision.models.detection.ssd import SSD, _vgg_extractor, SSD300_VGG16_Weights
 from torchvision.models.detection.ssdlite import _normal_init, _mobilenet_extractor, SSDLiteHead, SSDLite320_MobileNet_V3_Large_Weights
+from torchvision.models.quantization.utils import _fuse_modules
+from torchvision.ops.misc import Conv2dNormActivation, SqueezeExcitation
+from torchvision.models.mobilenetv3 import (
+    InvertedResidual,
+    InvertedResidualConfig,
+    MobileNetV3,
+    _mobilenet_v3_conf,
+    MobileNet_V3_Large_Weights,
+)
+
+class QuantizableSqueezeExcitation(SqueezeExcitation):
+    _version = 2
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs["scale_activation"] = nn.Hardsigmoid
+        super().__init__(*args, **kwargs)
+        self.skip_mul = nn.quantized.FloatFunctional()
+
+    def forward(self, input: Tensor) -> Tensor:
+        return self.skip_mul.mul(self._scale(input), input)
+
+    def fuse_model(self, is_qat: Optional[bool] = None) -> None:
+        _fuse_modules(self, ["fc1", "activation"], is_qat, inplace=True)
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        version = local_metadata.get("version", None)
+
+        if hasattr(self, "qconfig") and (version is None or version < 2):
+            default_state_dict = {
+                "scale_activation.activation_post_process.scale": torch.tensor([1.0]),
+                "scale_activation.activation_post_process.activation_post_process.scale": torch.tensor([1.0]),
+                "scale_activation.activation_post_process.zero_point": torch.tensor([0], dtype=torch.int32),
+                "scale_activation.activation_post_process.activation_post_process.zero_point": torch.tensor(
+                    [0], dtype=torch.int32
+                ),
+                "scale_activation.activation_post_process.fake_quant_enabled": torch.tensor([1]),
+                "scale_activation.activation_post_process.observer_enabled": torch.tensor([1]),
+            }
+            for k, v in default_state_dict.items():
+                full_key = prefix + k
+                if full_key not in state_dict:
+                    state_dict[full_key] = v
+
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+
+
+class QuantizableInvertedResidual(InvertedResidual):
+    # TODO https://github.com/pytorch/vision/pull/4232#pullrequestreview-730461659
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(se_layer=QuantizableSqueezeExcitation, *args, **kwargs)  # type: ignore[misc]
+        self.skip_add = nn.quantized.FloatFunctional()
+
+    def forward(self, x: Tensor) -> Tensor:
+        if self.use_res_connect:
+            return self.skip_add.add(x, self.block(x))
+        else:
+            return self.block(x)
 
 class QuantizableSSD(SSD):
     def __init__(self, backbone: nn.Module, anchor_generator: DefaultBoxGenerator, size: Tuple[int, int], num_classes: int, 
@@ -29,7 +103,17 @@ class QuantizableSSD(SSD):
     def forward(self, images: List[Tensor], targets: Optional[List[Dict[str, Tensor]]] = None) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]:
         images = self.quant(images)
         return self.dequant(super().forward(images, targets))
-        
+
+    def fuse_model(self, is_qat: Optional[bool] = None) -> None:
+        for m in self.modules():
+            if type(m) is Conv2dNormActivation:
+                modules_to_fuse = ["0", "1"]
+                if len(m) == 3 and type(m[2]) is nn.ReLU:
+                    modules_to_fuse.append("2")
+                _fuse_modules(m, modules_to_fuse, is_qat, inplace=True)
+            elif type(m) is QuantizableSqueezeExcitation:
+                m.fuse_model(is_qat)
+
 @handle_legacy_interface(
     weights=("pretrained", SSDLite320_MobileNet_V3_Large_Weights.COCO_V1),
     weights_backbone=("pretrained_backbone", MobileNet_V3_Large_Weights.IMAGENET1K_V1),
@@ -126,65 +210,6 @@ def qssd300_vgg16(
     trainable_backbone_layers: Optional[int] = None,
     **kwargs: Any,
 ) -> QuantizableSSD:
-    """The SSD300 model is based on the `SSD: Single Shot MultiBox Detector
-    <https://arxiv.org/abs/1512.02325>`_ paper.
-
-    .. betastatus:: detection module
-
-    The input to the model is expected to be a list of tensors, each of shape [C, H, W], one for each
-    image, and should be in 0-1 range. Different images can have different sizes but they will be resized
-    to a fixed size before passing it to the backbone.
-
-    The behavior of the model changes depending if it is in training or evaluation mode.
-
-    During training, the model expects both the input tensors, as well as a targets (list of dictionary),
-    containing:
-
-        - boxes (``FloatTensor[N, 4]``): the ground-truth boxes in ``[x1, y1, x2, y2]`` format, with
-          ``0 <= x1 < x2 <= W`` and ``0 <= y1 < y2 <= H``.
-        - labels (Int64Tensor[N]): the class label for each ground-truth box
-
-    The model returns a Dict[Tensor] during training, containing the classification and regression
-    losses.
-
-    During inference, the model requires only the input tensors, and returns the post-processed
-    predictions as a List[Dict[Tensor]], one for each input image. The fields of the Dict are as
-    follows, where ``N`` is the number of detections:
-
-        - boxes (``FloatTensor[N, 4]``): the predicted boxes in ``[x1, y1, x2, y2]`` format, with
-          ``0 <= x1 < x2 <= W`` and ``0 <= y1 < y2 <= H``.
-        - labels (Int64Tensor[N]): the predicted labels for each detection
-        - scores (Tensor[N]): the scores for each detection
-
-    Example:
-
-        >>> model = torchvision.models.detection.ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT)
-        >>> model.eval()
-        >>> x = [torch.rand(3, 300, 300), torch.rand(3, 500, 400)]
-        >>> predictions = model(x)
-
-    Args:
-        weights (:class:`~torchvision.models.detection.SSD300_VGG16_Weights`, optional): The pretrained
-                weights to use. See
-                :class:`~torchvision.models.detection.SSD300_VGG16_Weights`
-                below for more details, and possible values. By default, no
-                pre-trained weights are used.
-        progress (bool, optional): If True, displays a progress bar of the download to stderr
-            Default is True.
-        num_classes (int, optional): number of output classes of the model (including the background)
-        weights_backbone (:class:`~torchvision.models.VGG16_Weights`, optional): The pretrained weights for the
-            backbone
-        trainable_backbone_layers (int, optional): number of trainable (not frozen) layers starting from final block.
-            Valid values are between 0 and 5, with 5 meaning all backbone layers are trainable. If ``None`` is
-            passed (the default) this value is set to 4.
-        **kwargs: parameters passed to the ``torchvision.models.detection.SSD``
-            base class. Please refer to the `source code
-            <https://github.com/pytorch/vision/blob/main/torchvision/models/detection/ssd.py>`_
-            for more details about this class.
-
-    .. autoclass:: torchvision.models.detection.SSD300_VGG16_Weights
-        :members:
-    """
     weights = SSD300_VGG16_Weights.verify(weights)
     weights_backbone = VGG16_Weights.verify(weights_backbone)
 
@@ -257,7 +282,10 @@ def get_quant_model(fused_model):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ssd = get_qssd(device)
-    print(ssd.state_dict().keys())
+    # print(ssd)
+    # print(ssd.state_dict().keys())
+    # print(ssd.backbone.features[1])
+    # summary(ssd, (1,3,300,300),  device=device)
     # fssdlite = get_fused_model(ssd)
-    # int8ssdlite = get_quant_model(fssdlite)
+    int8ssd = get_quant_model(ssd)
     # print(int8ssdlite)
