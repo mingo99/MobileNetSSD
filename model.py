@@ -3,7 +3,7 @@ import torchvision
 from torchinfo import summary
 from coco_names import COCO_INSTANCE_CATEGORY_NAMES as coco_names
 from torchvision.models.quantization import *
-from quantization import *
+from quantization import qssdlite320_mobilenet_v3_large
 from PIL import Image
 
 def get_model(device):
