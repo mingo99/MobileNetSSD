@@ -1,3 +1,4 @@
+import os
 import warnings
 from collections import OrderedDict
 from functools import partial
@@ -12,7 +13,6 @@ from torchvision.models.mobilenetv3 import MobileNet_V3_Large_Weights
 from torchvision.models.detection import _utils as det_utils
 from torchvision.models.detection.backbone_utils import _validate_trainable_layers
 from torchvision.models.detection.ssd import SSD
-from torchvision.models.detection.transform import GeneralizedRCNNTransform
 from torchvision.models.detection.ssdlite import _normal_init, _mobilenet_extractor, SSDLiteHead, SSDLite320_MobileNet_V3_Large_Weights
 from torchvision.models.quantization.utils import _fuse_modules, _replace_relu
 from torchvision.ops.misc import Conv2dNormActivation
@@ -28,52 +28,14 @@ from torchvision.models.mobilenetv3 import (
     MobileNet_V3_Large_Weights,
 )
 
-
-
-def quantize_model(model: nn.Module, backend: str) -> None:
-    _dummy_input_data = torch.rand(1, 3, 320, 320)
-    if backend not in torch.backends.quantized.supported_engines:
-        raise RuntimeError("Quantized backend not supported ")
-    torch.backends.quantized.engine = backend
-    model.eval()
-    # Make sure that weight qconfig matches that of the serialized models
-    if backend == "fbgemm":
-        model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
-            activation=torch.ao.quantization.default_observer,
-            weight=torch.ao.quantization.default_per_channel_weight_observer,
-        )
-    elif backend == "qnnpack":
-        model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
-            activation=torch.ao.quantization.default_observer, weight=torch.ao.quantization.default_weight_observer
-        )
-    model.fuse_model()  # type: ignore[operator]
-    torch.ao.quantization.prepare(model, inplace=True)
-    model(_dummy_input_data)
-    torch.ao.quantization.convert(model, inplace=True)
-
-
-@handle_legacy_interface(
-    weights=(
-        "pretrained",
-        lambda kwargs: MobileNet_V3_Large_QuantizedWeights.IMAGENET1K_QNNPACK_V1
-        if kwargs.get("quantize", False)
-        else MobileNet_V3_Large_Weights.IMAGENET1K_V1,
-    )
-)
-def mobilenet_v3_large(
-    *,
-    weights: Optional[Union[MobileNet_V3_Large_QuantizedWeights, MobileNet_V3_Large_Weights]] = None,
-    progress: bool = True,
-    quantize: bool = False,
-    **kwargs: Any,
-) -> QuantizableMobileNetV3:
-    weights = (MobileNet_V3_Large_QuantizedWeights if quantize else MobileNet_V3_Large_Weights).verify(weights)
-    inverted_residual_setting, last_channel = _mobilenet_v3_conf("mobilenet_v3_large", reduced_tail=True, **kwargs)
-    return _mobilenet_v3_model(inverted_residual_setting, last_channel, weights, progress, quantize, **kwargs)
-
-
+from datasets import get_coco_datasets
 
 class QuantizableSSD(SSD):
+    """
+    Class for Quantizable SSD detector, inherit from SSD.
+
+    Add the QuantStub and DeQuantStub module and modify `forward` function.
+    """
     def __init__(self, backbone: nn.Module, anchor_generator: DefaultBoxGenerator, size: Tuple[int, int], num_classes: int, 
             image_mean: Optional[List[float]] = None, image_std: Optional[List[float]] = None, head: Optional[nn.Module] = None, 
             score_thresh: float = 0.01, nms_thresh: float = 0.45, detections_per_img: int = 200, iou_thresh: float = 0.5, 
@@ -83,10 +45,6 @@ class QuantizableSSD(SSD):
                         detections_per_img, iou_thresh, topk_candidates, positive_fraction, **kwargs)
         self.quant = torch.quantization.QuantStub()
         self.dequant = torch.quantization.DeQuantStub()
-
-    # def forward(self, images: List[Tensor], targets: Optional[List[Dict[str, Tensor]]] = None) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]:
-    #     images = self.quant(images)
-    #     return self.dequant(super().forward(images, targets))
 
     def forward(
         self, images: List[Tensor], targets: Optional[List[Dict[str, Tensor]]] = None
@@ -144,6 +102,13 @@ class QuantizableSSD(SSD):
         # compute the ssd heads outputs using the features
         head_outputs = self.head(features)
 
+        # dequanitze features and head outputs
+        for i, feature in enumerate(features):
+            features[i] = self.dequant(feature)
+
+        head_outputs['bbox_regression'] = self.dequant(head_outputs['bbox_regression'])
+        head_outputs['cls_logits'] = self.dequant(head_outputs['cls_logits'])
+
         # create the set of anchors
         anchors = self.anchor_generator(images, features)
 
@@ -176,7 +141,7 @@ class QuantizableSSD(SSD):
                 warnings.warn("SSD always returns a (Losses, Detections) tuple in scripting")
                 self._has_warned = True
             return losses, detections
-        return self.dequant(self.eager_outputs(losses, detections))
+        return self.eager_outputs(losses, detections)
 
     def fuse_model(self, is_qat: Optional[bool] = None) -> None:
         for m in self.modules():
@@ -187,6 +152,72 @@ class QuantizableSSD(SSD):
                 _fuse_modules(m, modules_to_fuse, is_qat, inplace=True)
             elif type(m) is QuantizableSqueezeExcitation:
                 m.fuse_model(is_qat)
+
+
+def quantize_model(model: nn.Module, backend: str, calibrate: bool=False) -> None:
+    """
+    Quantize SSDLite model from `float32` to `int8`.
+
+    Args:
+        model(nn.Module): float32 model
+        backend(str): a string representing the target backend. Currently supports `fbgemm`, `qnnpack` and `onednn`.
+        calibrate(bool): select whether to use the dataset for calibration
+    """
+    if backend not in torch.backends.quantized.supported_engines:
+        raise RuntimeError("Quantized backend not supported ")
+    torch.backends.quantized.engine = backend
+    model.eval()
+    # Make sure that weight qconfig matches that of the serialized models
+    if backend == "fbgemm":
+        model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
+            activation=torch.ao.quantization.default_observer,
+            weight=torch.ao.quantization.default_per_channel_weight_observer,
+        )
+    elif backend == "qnnpack":
+        model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
+            activation=torch.ao.quantization.default_observer, 
+            weight=torch.ao.quantization.default_weight_observer
+        )
+    model.fuse_model()  # type: ignore[operator]
+    torch.ao.quantization.prepare(model, inplace=True)
+    if calibrate:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Calibrate is enable, open {device} as computation device.")
+        model = model.to(device)
+        for epoch in range(100):
+            os.makedirs(f"../weights/epoch{epoch}")
+            for i, data in enumerate(get_coco_datasets(128)):
+                # print(data[0].shape)
+                image = data[0].to(device)
+                model(image)
+            model = model.to('cpu')
+            torch.save(model.state_dict,f"../weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
+            torch.ao.quantization.convert(model, inplace=True)
+            torch.save(model.state_dict,f"../weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
+    else:
+        _dummy_input_data = torch.rand(1, 3, 320, 320)
+        model(_dummy_input_data)
+        torch.ao.quantization.convert(model, inplace=True)
+
+
+@handle_legacy_interface(
+    weights=(
+        "pretrained",
+        lambda kwargs: MobileNet_V3_Large_QuantizedWeights.IMAGENET1K_QNNPACK_V1
+        if kwargs.get("quantize", False)
+        else MobileNet_V3_Large_Weights.IMAGENET1K_V1,
+    )
+)
+def mobilenet_v3_large(
+    *,
+    weights: Optional[Union[MobileNet_V3_Large_QuantizedWeights, MobileNet_V3_Large_Weights]] = None,
+    progress: bool = True,
+    quantize: bool = False,
+    **kwargs: Any,
+) -> QuantizableMobileNetV3:
+    weights = (MobileNet_V3_Large_QuantizedWeights if quantize else MobileNet_V3_Large_Weights).verify(weights)
+    inverted_residual_setting, last_channel = _mobilenet_v3_conf("mobilenet_v3_large", reduced_tail=True, **kwargs)
+    return _mobilenet_v3_model(inverted_residual_setting, last_channel, weights, progress, quantize, **kwargs)
 
 
 @handle_legacy_interface(
@@ -223,7 +254,6 @@ def qssdlite320_mobilenet_v3_large(
 
     # Enable reduced tail if no pretrained backbone is selected. See Table 6 of MobileNetV3 paper.
     reduce_tail = weights_backbone is None
-    print(f"qssd:{reduce_tail}")
 
     if norm_layer is None:
         norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.03)
@@ -272,12 +302,25 @@ def qssdlite320_mobilenet_v3_large(
         model.load_state_dict(weights.get_state_dict(progress=progress))
 
     if quantize:
-        quantize_model(model,'fbgemm')
+        quantize_model(model,'fbgemm',calibrate=True)
 
     return model
 
-if __name__ == "__main__":
+def get_model(device):
+    """
+    Get the SSDLite320_MobileNet_V3_Large model.
+    """
+    # load the model 
     weights=torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-    ssd = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
-    qssd = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights,quantize=True)
-    print(qssd)
+    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
+    # load the model onto the computation device
+    model = model.eval().to(device)
+    return model
+
+def get_quant_model(device):
+    """
+    Get the quantizable SSDLite320_MobileNet_V3_Large model.
+    """
+    weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
+    model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights,quantize=True)
+    return model.eval().to(device)
