@@ -185,16 +185,16 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False) -> Non
         print(f"Calibrate is enable, open {device} as computation device.")
         model = model.to(device)
         for epoch in range(100):
-            os.makedirs(f"../weights/epoch{epoch}")
+            os.makedirs(f"./weights/epoch{epoch}")
             for i, data in enumerate(get_coco_datasets(128)):
                 print(f"Epoch:{epoch} | Batch:{i}")
                 # print(data[0].shape)
                 image = data[0].to(device)
                 model(image)
             model = model.to('cpu')
-            torch.save(model.state_dict,f"../weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
+            torch.save(model.state_dict,f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
             torch.ao.quantization.convert(model, inplace=True)
-            torch.save(model.state_dict,f"../weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
+            torch.save(model.state_dict,f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
     else:
         _dummy_input_data = torch.rand(1, 3, 320, 320)
         model(_dummy_input_data)
