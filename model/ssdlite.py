@@ -187,6 +187,7 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False) -> Non
         for epoch in range(100):
             os.makedirs(f"../weights/epoch{epoch}")
             for i, data in enumerate(get_coco_datasets(128)):
+                print(f"Epoch:{epoch} | Batch:{i}")
                 # print(data[0].shape)
                 image = data[0].to(device)
                 model(image)
