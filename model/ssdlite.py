@@ -185,7 +185,9 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False) -> Non
         print(f"Calibrate is enable, open {device} as computation device.")
         model = model.to(device)
         for epoch in range(100):
-            os.makedirs(f"./weights/epoch{epoch}")
+            dir = f"./weights/epoch{epoch}"
+            if not os.path.exists(dir):
+                os.makedirs(dir)
             for i, data in enumerate(get_coco_datasets(128)):
                 print(f"Epoch:{epoch} | Batch:{i}")
                 # print(data[0].shape)
