@@ -45,6 +45,3 @@ def get_coco_datasets(batch_size,train=True):
     else:
         dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
     return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
-
-if __name__ == "__main__":
-    pass
