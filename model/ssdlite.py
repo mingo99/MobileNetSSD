@@ -1,9 +1,9 @@
+import torch
 import os
 import warnings
 from collections import OrderedDict
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-import torch
 import torchvision
 from torch import nn, Tensor
 from torchinfo import summary
@@ -29,6 +29,10 @@ from torchvision.models.mobilenetv3 import (
 )
 
 from datasets import get_coco_datasets
+
+import faulthandler
+# 在import之后直接添加以下启用代码即可
+faulthandler.enable()
 
 class QuantizableSSD(SSD):
     """
@@ -181,22 +185,29 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False) -> Non
     model.fuse_model()  # type: ignore[operator]
     torch.ao.quantization.prepare(model, inplace=True)
     if calibrate:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.device_count() > 1:
+                    print("Let's use", torch.cuda.device_count(), "GPUs!")
+                    # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         print(f"Calibrate is enable, open {device} as computation device.")
-        for epoch in range(100):
-            model = model.to(device)
-            dir = f"./weights/epoch{epoch}"
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-            for i, data in enumerate(get_coco_datasets(128)):
-                print(f"Epoch:{epoch} | Batch:{i}")
-                # print(data[0].shape)
-                image = data[0].to(device)
-                model(image)
-            model = model.to('cpu')
-            torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
-            torch.ao.quantization.convert(model, inplace=True)
-            torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
+        with torch.no_grad():
+            for epoch in range(10):
+                model = nn.DataParallel(model)
+                model = model.to(device)
+                dir = f"./weights/epoch{epoch}"
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                for i, data in enumerate(get_coco_datasets(32)):
+                    print(f"Epoch:{epoch} | Batch:{i}")
+                    # print(data[0].shape)
+                    image = data[0].to(device)
+                    model(image)
+                    break
+                torch.cuda.empty_cache()
+                model = model.to('cpu')
+                torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
+                torch.ao.quantization.convert(model, inplace=True)
+                torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
     else:
         _dummy_input_data = torch.rand(1, 3, 320, 320)
         model(_dummy_input_data)
