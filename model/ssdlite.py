@@ -123,3 +123,9 @@ def get_quant_model(device):
     model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights,quantize=True)
     # load the model onto the computation device
     return model.eval().to(device)
+
+def ssdlite_with_quant_weights(path):
+    model = get_quant_model('cpu')
+    state_dict = torch.load(path)
+    model.load_state_dict(state_dict)
+    return model
