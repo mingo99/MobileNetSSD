@@ -11,7 +11,7 @@ def ssdlite_quantize():
         model(QuantizableSSD): Quantized and calibrated SSDLite 
     """
     model = get_quant_model('cpu')
-    model = ssdlite_calibrate(model)
+    model = ssdlite_calibrate(model,100,128)
     return model
 
 if __name__ == "__main__":

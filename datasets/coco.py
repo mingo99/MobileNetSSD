@@ -9,7 +9,7 @@ transform = transforms.Compose([
     transforms.Resize((320,320))
 ])
 
-coco_root = "../../data/coco/"
+coco_root = "../data/coco/"
 coco_img_train = coco_root+"images/train2014/"
 coco_img_val = coco_root+"images/val2014/"
 coco_ann_train = coco_root+"annotations/instances_train2014.json"
