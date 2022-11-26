@@ -30,6 +30,6 @@ def ssdlite_calibrate(model,epoch,batch_size,calib_device='cpu'):
                 torch.cuda.empty_cache()
                 model = model.to('cpu')
             torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_float32.pth")
-            torch.ao.quantization.convert(model, inplace=True)
+            model = torch.quantization.convert(model)
             torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_int8.pth")
     return model

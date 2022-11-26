@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 
-from ._utils import get_fixed_point
+from _utils import get_fixed_point
 
 def get_quant_factors(state_dict):
     iact_scales      = []
@@ -138,3 +138,15 @@ def get_params():
     print(b)
     print(len(w))
     print(len(b))
+
+
+if __name__ == "__main__":
+    state_dict0 = torch.load("../weights/epoch0/ssdlite320_mobilenet_v3_large_int8.pth")
+    state_dict1 = torch.load("../weights/epoch1/ssdlite320_mobilenet_v3_large_float32.pth")
+    state_dict2 = torch.load("../weights/epoch2/ssdlite320_mobilenet_v3_large_float32.pth")
+    print(len(state_dict0.keys()))
+    for key in state_dict0.keys():
+        print(state_dict0[key].int_repr())
+        break
+    # print(state_dict0['backbone.features.0.0.0.scale'])
+    # print(state_dict1['backbone.features.0.0.0.scale'])

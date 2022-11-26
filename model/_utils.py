@@ -169,10 +169,13 @@ def quantize_model(model: nn.Module, backend: str) -> None:
             weight=torch.ao.quantization.default_weight_observer
         )
     model.fuse_model()  # type: ignore[operator]
-    torch.ao.quantization.prepare(model, inplace=True)
+    torch.quantization.prepare(model, inplace=True)
     _dummy_input_data = torch.rand(1, 3, 320, 320)
     model(_dummy_input_data)
-    torch.ao.quantization.convert(model, inplace=True)
+    torch.quantization.convert(model, inplace=True)
+
+def load_model():
+    pass
 
 
 @handle_legacy_interface(

@@ -1,7 +1,7 @@
 import torch
 import torchvision.transforms as transforms
 from torchvision.datasets.coco import CocoDetection
-from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataloader import DataLoader, RandomSampler
 from collections import defaultdict
 
 transform = transforms.Compose([
@@ -9,7 +9,7 @@ transform = transforms.Compose([
     transforms.Resize((320,320))
 ])
 
-coco_root = "../data/coco/"
+coco_root = "../../data/coco/"
 coco_img_train = coco_root+"images/train2014/"
 coco_img_val = coco_root+"images/val2014/"
 coco_ann_train = coco_root+"annotations/instances_train2014.json"
@@ -45,3 +45,11 @@ def get_coco_datasets(batch_size,train=True):
     else:
         dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
     return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
+
+def get_coco_calibrate_datasets(batch_size):
+    dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
+
+
+if __name__ == "__main__":
+    dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
+    print(dataset.ids)
