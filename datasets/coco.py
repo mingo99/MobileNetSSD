@@ -48,8 +48,10 @@ def get_coco_datasets(batch_size,train=True):
 
 def get_coco_calibrate_datasets(batch_size):
     dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
+    print(dataset.coco.getAnnIds())
 
 
 if __name__ == "__main__":
     dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
-    print(dataset.ids)
+    print(dataset.coco.loadImgs([581913,581929]))
+    # print(len(dataset.ids))
