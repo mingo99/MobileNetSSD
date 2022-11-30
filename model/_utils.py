@@ -20,6 +20,8 @@ from torchvision.models.mobilenetv3 import (
     MobileNet_V3_Large_Weights
 )
 
+from datasets import get_coco_calibrate_datasets, get_coco_datasets
+
 class QuantizableSSD(SSD):
     """
     Class for Quantizable SSD detector, inherit from SSD.
@@ -144,7 +146,7 @@ class QuantizableSSD(SSD):
                 m.fuse_model(is_qat)
 
 
-def quantize_model(model: nn.Module, backend: str) -> None:
+def quantize_model(model: nn.Module, backend: str, calibrate: bool=False, epochs: Optional[int]=1) -> None:
     """
     Quantize SSDLite model from `float32` to `int8`.
 
@@ -170,12 +172,20 @@ def quantize_model(model: nn.Module, backend: str) -> None:
         )
     model.fuse_model()  # type: ignore[operator]
     torch.quantization.prepare(model, inplace=True)
-    _dummy_input_data = torch.rand(1, 3, 320, 320)
-    model(_dummy_input_data)
+    if calibrate:
+        print("Calibrating...")
+        for epoch in range(epochs):
+            for i, data in enumerate(get_coco_calibrate_datasets(64)):
+                print(f"Epoch: {epoch} | Iter: {i}")
+                image = data[0]
+                model(image)
+        print("Calibrate done.")
+    else:
+        _dummy_input_data = torch.rand(1, 3, 320, 320)
+        model(_dummy_input_data)
     torch.quantization.convert(model, inplace=True)
-
-def load_model():
-    pass
+    if calibrate:
+        torch.save(model.state_dict(),"./weights/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
 
 
 @handle_legacy_interface(

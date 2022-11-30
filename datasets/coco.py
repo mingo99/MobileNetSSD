@@ -1,6 +1,7 @@
 import random
 import torch
 import torchvision.transforms as transforms
+from typing import Optional
 from torchvision.datasets.coco import CocoDetection
 from torch.utils.data.dataloader import DataLoader, RandomSampler
 from collections import defaultdict
@@ -10,7 +11,7 @@ transform = transforms.Compose([
     transforms.Resize((320,320))
 ])
 
-coco_root = "../../../data/coco/"
+coco_root = "../../data/coco/"
 coco_img_train = coco_root+"images/train2014/"
 coco_img_val = coco_root+"images/val2014/"
 coco_ann_train = coco_root+"annotations/instances_train2014.json"
@@ -42,30 +43,35 @@ def coco_collate(batch):
 
 def get_coco_datasets(batch_size,train=True):
     if train:
+        print("Loading train set...")
         dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
     else:
+        print("Loading validation set...")
         dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
     return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
 
-def get_coco_calibrate_datasets(batch_size):
+def get_coco_calibrate_datasets(batch_size: Optional[int] = 1):
+    """
+    Select 5% of validation set as calibration set for quantization.
+    """
+    # random.seed(12345)
     dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
-    print(dataset.coco.getAnnIds())
-    path = dataset.coco.loadImgs(id)[0]["file_name"]
+    calibImgIds = []
+    for catId in dataset.coco.getCatIds():
+        imgIds = dataset.coco.getImgIds(catIds=catId)
+        slice_len = (len(imgIds)+19)//20
+        imgIds_calib = random.sample(imgIds,slice_len)
+        calibImgIds.extend(imgIds_calib)
+    calibImgIds = list(set(calibImgIds))
+    calibImgIds = sorted(calibImgIds)
+    dataset.ids = calibImgIds
+    print(f"Batch size: {batch_size}")
+    return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
 
 
 if __name__ == "__main__":
-    dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
-    calib_ds_len = 0
-    ds_len = 0
-    for catId in dataset.coco.getCatIds():
-        imgIds = dataset.coco.getImgIds(catIds=catId)
-        idx_max = (len(imgIds)+19)//20
-        # print(len(imgIds))
-        imgIds_part = random.sample(imgIds,idx_max)
-        # print(len(imgIds_part))
-        ds_len += len(imgIds)
-        calib_ds_len += len(imgIds_part)
-    print(imgIds)
-    print(ds_len)
-    print(calib_ds_len)
-    # print(len(dataset.ids))
+    calib_data = get_coco_calibrate_datasets(64)
+    print(len(calib_data))
+    for i, data in enumerate(calib_data):
+        print(data[0].shape)
+        print(i)

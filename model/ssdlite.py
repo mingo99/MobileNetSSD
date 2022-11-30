@@ -14,7 +14,7 @@ from torchvision.models.detection.ssdlite import(
     SSDLite320_MobileNet_V3_Large_Weights
 )
 from torchvision.models.quantization.utils import _fuse_modules, _replace_relu
-from torchvision.models.mobilenetv3 import MobileNet_V3_Large_Weights
+from torchvision.models.mobilenetv3 import MobileNet_V3_Large_Weights, mobilenet_v3_large
 
 from ._utils import *
 
@@ -24,7 +24,6 @@ from ._utils import *
 )
 def qssdlite320_mobilenet_v3_large(
     *,
-    quantize: bool=False,
     weights: Optional[SSDLite320_MobileNet_V3_Large_Weights] = None,
     progress: bool = True,
     num_classes: Optional[int] = None,
@@ -96,11 +95,9 @@ def qssdlite320_mobilenet_v3_large(
     )
     _replace_relu(model)
     # Load weights
+    print("Load pretrained weights...")
     if weights is not None:
         model.load_state_dict(weights.get_state_dict(progress=progress))
-    # Quantize model
-    if quantize:
-        quantize_model(model,'fbgemm')
     return model
 
 
@@ -114,18 +111,30 @@ def get_model(device):
     # load the model onto the computation device
     return model.eval().to(device)
 
-def get_quant_model(device):
+def get_quant_model(device,calibrate: bool=False):
     """
     Get the quantizable SSDLite320_MobileNet_V3_Large model.
     """
     # load the model 
     weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-    model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights,quantize=True)
+    model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
+    # Quantize model
+    quantize_model(model,'fbgemm',calibrate,100)
     # load the model onto the computation device
-    return model.eval().to(device)
+    return model.to(device)
 
 def ssdlite_with_quant_weights(path):
-    model = get_quant_model('cpu')
+    model = qssdlite320_mobilenet_v3_large()
+    model.eval()
+    model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
+            activation=torch.ao.quantization.default_observer,
+            weight=torch.ao.quantization.default_per_channel_weight_observer,
+        )
+    model.fuse_model()
+    torch.quantization.prepare(model, inplace=True)
+    torch.quantization.convert(model, inplace=True)
+    print(model.state_dict().keys())
+    print(len(model.state_dict().keys()))
     state_dict = torch.load(path)
     model.load_state_dict(state_dict)
     return model
