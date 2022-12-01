@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # model = get_quant_model('cpu')
     # for key in model.state_dict().keys():
     #     print(key)
-    # model = get_quant_model('cpu',True)
+    model = get_quant_model('cpu',True)
     # model = ssdlite_with_quant_weights("./weights/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
     state_dict0 = torch.load("./weights/epoch0/ssdlite320_mobilenet_v3_large_int8.pth")
     state_dict1 = torch.load("./weights/epoch1/ssdlite320_mobilenet_v3_large_float32.pth")

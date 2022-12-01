@@ -1,3 +1,4 @@
+import os
 import warnings
 import torch
 from torch import nn, Tensor
@@ -174,11 +175,20 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False, epochs
     torch.quantization.prepare(model, inplace=True)
     if calibrate:
         print("Calibrating...")
-        for epoch in range(epochs):
-            for i, data in enumerate(get_coco_calibrate_datasets(64)):
-                print(f"Epoch: {epoch} | Iter: {i}")
-                image = data[0]
-                model(image)
+        with open('calib.log','w') as f:
+            for epoch in range(epochs):
+                dir = f"./weights/epoch{epoch}"
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                model.to('cuda')
+                for i, data in enumerate(get_coco_datasets(128,False)):
+                    print(f"Epoch: {epoch} | Iter: {i}")
+                    image = data[0].to('cuda')
+                    model(image)
+                model.to('cpu')
+                model_int8 = torch.quantization.convert(model)
+                f.write(f"{model_int8.state_dict()['backbone.features.0.4.block.2.skip_mul.scale']}")
+                torch.save(model_int8.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
         print("Calibrate done.")
     else:
         _dummy_input_data = torch.rand(1, 3, 320, 320)
