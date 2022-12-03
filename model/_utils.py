@@ -180,12 +180,12 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False, epochs
                 dir = f"./weights/epoch{epoch}"
                 if not os.path.exists(dir):
                     os.makedirs(dir)
-                model.to('cuda')
+                # model.to('cuda')
                 for i, data in enumerate(get_coco_datasets(128,False)):
                     print(f"Epoch: {epoch} | Iter: {i}")
-                    image = data[0].to('cuda')
+                    image = data[0]
                     model(image)
-                model.to('cpu')
+                # model.to('cpu')
                 model_int8 = torch.quantization.convert(model)
                 f.write(f"{model_int8.state_dict()['backbone.features.0.4.block.2.skip_mul.scale']}")
                 torch.save(model_int8.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
