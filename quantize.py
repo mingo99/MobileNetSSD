@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # for key in model.state_dict().keys():
     #     print(key)
     path = "./weights/ssdlite320_mobilenet_v3_large_calibrated_pre_model.pth"
-    model = get_quant_model('cpu',path,True,64,5)
+    model = get_quant_model('cpu',path,True,128,5)
     # model = ssdlite_with_quant_weights("./weights/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
     # state_dict0 = torch.load(path)
     # print(state_dict0.keys())
