@@ -126,15 +126,13 @@ def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[in
 def ssdlite_with_quant_weights(path):
     model = qssdlite320_mobilenet_v3_large()
     model.eval()
-    model.qconfig = torch.ao.quantization.QConfig(  # type: ignore[assignment]
-            activation=torch.ao.quantization.default_observer,
-            weight=torch.ao.quantization.default_per_channel_weight_observer,
+    model.qconfig = torch.quantization.QConfig(  # type: ignore[assignment]
+            activation=torch.quantization.default_observer,
+            weight=torch.quantization.default_per_channel_weight_observer,
         )
     model.fuse_model()
     torch.quantization.prepare(model, inplace=True)
     state_dict = torch.load(path)
     model.load_state_dict(state_dict)
     torch.quantization.convert(model, inplace=True)
-    # print(model.state_dict().keys())
-    # print(len(model.state_dict().keys()))
     return model
