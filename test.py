@@ -17,7 +17,7 @@ def test():
     if args['video']:
         detect_video(args['input'],args['threshold'],args['quantize'])
     else:
-        detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
+        detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
 
 if __name__ == "__main__":
     test()

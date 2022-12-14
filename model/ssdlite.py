@@ -111,7 +111,7 @@ def get_model(device):
     # load the model onto the computation device
     return model.eval().to(device)
 
-def get_quant_model(device,calibrate: bool=False):
+def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[int]=1, epochs: Optional[int]=1):
     """
     Get the quantizable SSDLite320_MobileNet_V3_Large model.
     """
@@ -119,7 +119,7 @@ def get_quant_model(device,calibrate: bool=False):
     weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
     model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
     # Quantize model
-    quantize_model(model,'fbgemm',calibrate,100)
+    quantize_model(model,'fbgemm',path,calibrate,batch_size,epochs)
     # load the model onto the computation device
     return model.to(device)
 
@@ -132,9 +132,9 @@ def ssdlite_with_quant_weights(path):
         )
     model.fuse_model()
     torch.quantization.prepare(model, inplace=True)
-    torch.quantization.convert(model, inplace=True)
-    print(model.state_dict().keys())
-    print(len(model.state_dict().keys()))
     state_dict = torch.load(path)
     model.load_state_dict(state_dict)
+    torch.quantization.convert(model, inplace=True)
+    # print(model.state_dict().keys())
+    # print(len(model.state_dict().keys()))
     return model

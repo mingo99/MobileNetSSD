@@ -147,7 +147,14 @@ class QuantizableSSD(SSD):
                 m.fuse_model(is_qat)
 
 
-def quantize_model(model: nn.Module, backend: str, calibrate: bool=False, epochs: Optional[int]=1) -> None:
+def quantize_model(
+        model: nn.Module, 
+        backend: str,
+        path: str="./weights/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth",
+        calibrate: bool=False, 
+        batch_size: Optional[int]=1, 
+        epochs: Optional[int]=1
+    ) -> None:
     """
     Quantize SSDLite model from `float32` to `int8`.
 
@@ -174,28 +181,25 @@ def quantize_model(model: nn.Module, backend: str, calibrate: bool=False, epochs
     model.fuse_model()  # type: ignore[operator]
     torch.quantization.prepare(model, inplace=True)
     if calibrate:
+        device = torch.device('cpu')
+        print(f"Calibrate is enable, open {device} as computation device.")
         print("Calibrating...")
-        with open('calib.log','w') as f:
-            for epoch in range(epochs):
-                dir = f"./weights/epoch{epoch}"
-                if not os.path.exists(dir):
-                    os.makedirs(dir)
-                model.to('cuda')
-                for i, data in enumerate(get_coco_datasets(128,False)):
-                    print(f"Epoch: {epoch} | Iter: {i}")
-                    image = data[0].to('cuda')
-                    model(image)
-                model.to('cpu')
-                model_int8 = torch.quantization.convert(model)
-                f.write(f"{model_int8.state_dict()['backbone.features.0.4.block.2.skip_mul.scale']}")
-                torch.save(model_int8.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
+        for epoch in range(epochs):
+            dir = f"./weights/epoch{epoch}"
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            model.to(device)
+            for i, data in enumerate(get_coco_calibrate_datasets(batch_size)):
+                print(f"Epoch: {epoch} | Iter: {i}")
+                image = data[0].to(device)
+                model(image)
+            torch.save(model.state_dict(),f"./weights/epoch{epoch}/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
+        torch.save(model.state_dict(),path)
         print("Calibrate done.")
     else:
         _dummy_input_data = torch.rand(1, 3, 320, 320)
         model(_dummy_input_data)
     torch.quantization.convert(model, inplace=True)
-    if calibrate:
-        torch.save(model.state_dict(),"./weights/ssdlite320_mobilenet_v3_large_calibrated_model.pth")
 
 
 @handle_legacy_interface(
