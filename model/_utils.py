@@ -189,7 +189,7 @@ def quantize_model(
             if not os.path.exists(dir):
                 os.makedirs(dir)
             model.to(device)
-            for i, data in enumerate(get_coco_calibrate_datasets(batch_size)):
+            for i, data in enumerate(get_coco_datasets(batch_size, False)):
                 print(f"Epoch: {epoch} | Iter: {i}")
                 image = data[0].to(device)
                 model(image)
