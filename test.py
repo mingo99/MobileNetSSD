@@ -18,7 +18,8 @@ def test():
     if args['video']:
         detect_video(args['input'],args['threshold'],args['quantize'])
     else:
-        detect_image(args['input'],args['threshold'],args['quantize'],False,"./weights/epoch4/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
+        detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/ssdlite320_mobilenet_v3_large_calibrated_model_pre_dummy.pth")
+        # detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/epoch0/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
 
 if __name__ == "__main__":
     test()
@@ -35,4 +36,3 @@ if __name__ == "__main__":
     # print(state_dict1['backbone.features.0.4.block.2.skip_mul.scale'],state_dict3['backbone.features.0.4.block.2.skip_mul.zero_point'])
     # print(state_dict2['backbone.features.0.4.block.2.skip_mul.scale'],state_dict3['backbone.features.0.4.block.2.skip_mul.zero_point'])
     # print(state_dict3['backbone.features.0.4.block.2.skip_mul.scale'],state_dict3['backbone.features.0.4.block.2.skip_mul.zero_point'])
-    
