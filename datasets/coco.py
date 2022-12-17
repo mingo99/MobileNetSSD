@@ -1,10 +1,66 @@
+import os.path
 import random
 import torch
 import torchvision.transforms as transforms
-from typing import Optional
-from torchvision.datasets.coco import CocoDetection
+from typing import Any, Callable, Optional, Tuple, List
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+# from torchvision.datasets.coco import CocoDetection
 from torch.utils.data.dataloader import DataLoader, RandomSampler
 from collections import defaultdict
+from PIL import Image
+from torchvision.datasets.vision import VisionDataset
+
+class CocoDetection(VisionDataset):
+    """`MS Coco Detection <https://cocodataset.org/#detection-2016>`_ Dataset.
+
+    It requires the `COCO API to be installed <https://github.com/pdollar/coco/tree/master/PythonAPI>`_.
+
+    Args:
+        root (string): Root directory where images are downloaded to.
+        annFile (string): Path to json annotation file.
+        transform (callable, optional): A function/transform that  takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.PILToTensor``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        transforms (callable, optional): A function/transform that takes input sample and its target as entry
+            and returns a transformed version.
+    """
+
+    def __init__(
+        self,
+        root: str,
+        annFile: str,
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+        transforms: Optional[Callable] = None,
+    ) -> None:
+        super().__init__(root, transforms, transform, target_transform)
+        from pycocotools.coco import COCO
+
+        self.coco = COCO(annFile)
+        self.ids = list(sorted(self.coco.imgs.keys()))
+
+    def _load_image(self, id: int) -> Image.Image:
+        path = self.coco.loadImgs(id)[0]["file_name"]
+        image_id = self.coco.loadImgs(id)[0]["id"]
+        return Image.open(os.path.join(self.root, path)).convert("RGB"), image_id
+
+    def _load_target(self, id: int) -> List[Any]:
+        return self.coco.loadAnns(self.coco.getAnnIds(id))
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        id = self.ids[index]
+        image, image_id = self._load_image(id)
+        target = self._load_target(id)
+
+        if self.transforms is not None:
+            image, target = self.transforms(image, target)
+
+        return image, target, image_id
+
+    def __len__(self) -> int:
+        return len(self.ids)
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -33,11 +89,17 @@ def coco_collate(batch):
         images.append(sample[0])
         target = defaultdict(list)
         for ann in sample[1]:
+            ann['bbox'][2] = ann['bbox'][0]+ann['bbox'][2]
+            ann['bbox'][3] = ann['bbox'][1]+ann['bbox'][3]
             target['boxes'].append(torch.FloatTensor(ann['bbox']))
             target['labels'].append(ann['category_id'])
+        
         if target['boxes']:
             target['boxes'] = torch.stack(target['boxes'])
+        else:
+            target['boxes'] = torch.zeros((0, 4), dtype=torch.float32)
         target['labels'] = torch.tensor(target['labels'],dtype=torch.long)
+        target['image_id'] = torch.tensor(sample[2],dtype=torch.long)
         targets.append(target)
     return torch.stack(images, 0), targets
 
@@ -69,9 +131,24 @@ def get_coco_calibrate_datasets(batch_size: Optional[int] = 1):
     return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
 
 
+def coco_eval(dt_path, iou_type):
+    """
+    Args:
+        iou_type: `segm`, `bbox`, `keypoints`
+    """
+    cocoGt = COCO(coco_ann_val)
+    cocoDt = cocoGt.loadRes(dt_path)
+    cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
 if __name__ == "__main__":
-    calib_data = get_coco_calibrate_datasets(64)
-    print(len(calib_data))
-    for i, data in enumerate(calib_data):
-        print(data[0].shape)
-        print(i)
+    dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
+    image, target = dataset.__getitem__(0)
+    for ann in target:
+        print(ann['category_id'])
+    print(len(target))
+    # img = cv2.imread(coco_img_train+f"COCO_train2014_{target[0]['image_id']:012d}.jpg")
+    # cv2.imshow("img",img)
+    # cv2.waitKey(0)

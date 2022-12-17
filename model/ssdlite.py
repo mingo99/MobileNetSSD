@@ -101,13 +101,13 @@ def qssdlite320_mobilenet_v3_large(
     return model
 
 
-def get_model(device):
+def get_model(device, pretrained: bool=True):
     """
     Get the SSDLite320_MobileNet_V3_Large model.
     """
     # load the model 
     weights=torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
+    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained=pretrained,weights=weights)
     # load the model onto the computation device
     return model.eval().to(device)
 
