@@ -70,7 +70,7 @@ transform = transforms.Compose([
 coco_root = "../../data/coco/"
 coco_img_train = coco_root+"images/train2014/"
 coco_img_val = coco_root+"images/val2014/"
-coco_ann_train = coco_root+"annotations/instances_train2014.json"
+coco_ann_train = coco_root+"annotations/instances_train2014_new.json"
 coco_ann_val = coco_root+"annotations/instances_val2014.json"
 
 def coco_collate(batch):
