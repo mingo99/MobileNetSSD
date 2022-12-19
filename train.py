@@ -47,8 +47,7 @@ def train_one_epoch(epoch, model, optimizer, scheduler, train_loader, device):
             loss = loss_b + loss_c
             loss.backward()
             optimizer.step()
-            if (epoch+1)%5 == 0:
-                scheduler.step()
+            scheduler.step()               
             # 统计总损失
             total_loss_b += loss_b
             total_loss_c += loss_c
@@ -74,10 +73,13 @@ def train():
     model.fuse_model()
     torch.quantization.prepare_qat(model, inplace=True)
 
-    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
-    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     train_loader = get_coco_datasets(BATCH_SIZE, True)
     # test_loader = get_coco_datasets(BATCH_SIZE, False)
+    num_steps = len(train_loader)*EPOCHS
+
+    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
+    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps, eta_min=0.0001)
 
     start_epoch = model_load(model, optimizer, "./checkpoint/")
     for epoch in range(start_epoch, EPOCHS):

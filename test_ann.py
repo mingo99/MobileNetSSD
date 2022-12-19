@@ -49,5 +49,6 @@ if __name__ == '__main__':
             "category_id": ann['category_id'],
             "id": ann['id']
         })
+    anns.sort(key=lambda ann: ann['image_id'])
     with open("./coco_val_anns.json", 'w') as f:
         json.dump(anns, f, indent=4)

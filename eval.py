@@ -2,6 +2,7 @@ import torch
 from datasets import get_coco_datasets, coco_eval
 from model import get_model, get_quant_model, qssdlite320_mobilenet_v3_large
 from _utils import model_save, model_load, postprocess_as_ann, anns_to_json
+import torchvision
 
 def eval_model(model, test_loader, device):
     dt_path = f"./eval_res/dt_anns.json"
@@ -23,32 +24,10 @@ def eval_model(model, test_loader, device):
 
 if __name__ == "__main__":
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # model = get_model(device, True)
+    # # model = get_model(device, True)
+    # weights=torchvision.models.detection.SSD300_VGG16_Weights.DEFAULT
+    # model = torchvision.models.detection.ssd300_vgg16(pretrained=True,weights=weights)
     # test_loader = get_coco_datasets(32,False)
     # eval_model(model, test_loader, device)
-    a = [
-        {
-            "image_id": 558840,
-            "bbox": [
-                199.84,
-                200.46,
-                77.71,
-                70.88
-            ],
-            "category_id": 58,
-            "id": 156
-        },
-        {
-            "image_id": 200365,
-            "bbox": [
-                234.22,
-                317.11,
-                149.39,
-                38.55
-            ],
-            "category_id": 58,
-            "id": 509
-        }
-    ]
-    print(a)
-    print(a.sort())
+    dt_path = f"./eval_res/dt_anns.json"
+    coco_eval(dt_path,'bbox')
