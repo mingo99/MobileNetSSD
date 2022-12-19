@@ -145,10 +145,8 @@ def coco_eval(dt_path, iou_type):
 
 if __name__ == "__main__":
     dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
-    image, target, id = dataset.__getitem__(78208)
-    for ann in target:
+    id = dataset.coco.getAnnIds(imgIds=550395)
+    anns = dataset.coco.loadAnns(id)
+    print(len(anns))
+    for ann in anns:
         print(ann['bbox'])
-    print(len(target))
-    # img = cv2.imread(coco_img_train+f"COCO_train2014_{target[0]['image_id']:012d}.jpg")
-    # cv2.imshow("img",img)
-    # cv2.waitKey(0)

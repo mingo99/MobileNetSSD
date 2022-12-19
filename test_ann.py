@@ -1,6 +1,7 @@
-from torchvision.datasets.coco import CocoDetection
+from datasets import CocoDetection
 from detection import draw_boxes
 from datasets import COCO_INSTANCE_CATEGORY_NAMES as coco_names
+from model import get_model
 
 import torchvision.transforms as transforms
 import numpy as np
@@ -40,4 +41,8 @@ def test_bbox():
 
 if __name__ == '__main__':
     dataset = json.load(open(coco_ann_train, 'r'))
-    print(dataset['annotations'][0])
+    # print(dataset['annotations'][0])
+    with open("./coco_train_anns.json", 'w') as f:
+        json.dump(dataset, f, indent=4)
+    # model = get_model('cuda')
+    # print(model)
