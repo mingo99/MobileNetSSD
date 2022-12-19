@@ -1,5 +1,5 @@
-run:
-	python detect_image.py --input input/image_1.jpg -t 0.5
+run_server:
+	sbatch --gpus=1 run.sh 100 128 0.01
 
-run_quant:
-	python detect_image.py --input input/image_1.jpg -t 0.5 -q True
+run_pc:
+	python train.py -e=$1 -b=$2 -lr=$3
