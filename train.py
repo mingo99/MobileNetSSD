@@ -27,7 +27,6 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
     with open(f"./log/log_net{epoch+1:02d}.log", "w")as f:
         print(f'Epoch:{epoch+1}')
         model.train()
-        print(device)
         model = model.to(device)
         total_loss_b = 0.0
         total_loss_c = 0.0
@@ -58,25 +57,6 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
             f.flush()
     print(f"Finish {epoch+1}th epoch training.")
 
-def test_per_ten_epoch(epoch, model, test_loader, device):
-    print(f"Arrived at epoch{epoch+1}, waiting for validation...")
-    dt_path = f"./eval/dt_epoch{epoch+1}.json"
-    model.eval()
-    model = model.to(device)
-    res_anns = []
-    with torch.no_grad():
-        for i, data in enumerate(test_loader):
-            print(f"Test {i}th batch...")
-            # 数据读取
-            length = len(test_loader)
-            images, targets = data
-            images = images.to(device)
-            outputs = model(images)
-            postprocess_as_ann(res_anns,targets,outputs,0.5)
-        print("Test done!")
-    anns_to_json(res_anns,dt_path)
-    coco_eval(dt_path,'bbox')
-
 def train():
     print('Quantization Aware Training SSD on: coco')
     print('Using the specified args:')
@@ -85,7 +65,6 @@ def train():
     print(f"Learning Rate: {LR}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device)
     model = qssdlite320_mobilenet_v3_large()
     model.train()
     # Settings of QAT
