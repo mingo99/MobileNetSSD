@@ -100,17 +100,17 @@ if __name__ == "__main__":
     train_loader = get_coco_datasets(BATCH_SIZE, True)
     print(train_loader)
     for i, data in enumerate(train_loader):
-        if i>=2443:
-            images, targets = data
-            print(targets)
-            for target_idx, target in enumerate(targets):
-                boxes = target["boxes"]
-                degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
-                if degenerate_boxes.any():
-                    bb_idx = torch.where(degenerate_boxes.any(dim=1))[0][0]
-                    degen_bb: List[float] = boxes[bb_idx].tolist()
-                    torch._assert(
-                        False,
-                        "All bounding boxes should have positive height and width."
-                        f" Found invalid box {degen_bb} for target at index {target_idx} in image {ids[target_idx]}.",
-                    )
+        print(f" Btach {i}")
+        images, targets = data
+        # print(targets)
+        for target_idx, target in enumerate(targets):
+            boxes = target["boxes"]
+            degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
+            if degenerate_boxes.any():
+                bb_idx = torch.where(degenerate_boxes.any(dim=1))[0][0]
+                degen_bb: List[float] = boxes[bb_idx].tolist()
+                torch._assert(
+                    False,
+                    "All bounding boxes should have positive height and width."
+                    f" Found invalid box {degen_bb} for target at index {target_idx} in image {target['image_id']}.",
+                )
