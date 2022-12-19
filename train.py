@@ -23,9 +23,9 @@ BATCH_SIZE = args.batch_size
 LR = args.learning_rate
 ITERS_ONE_EPOCH = (82782+BATCH_SIZE)//BATCH_SIZE
 
-def train_one_epoch(epoch, model, optimizer, train_loader, device):
-    with open(f"./log/log_net{epoch+1:02d}.log", "w")as f:
-        print(f'Epoch:{epoch+1}')
+def train_one_epoch(epoch, model, optimizer, scheduler, train_loader, device):
+    with open(f"./log/log_net{epoch:02d}.log", "w")as f:
+        print(f'Epoch:{epoch}')
         model.train()
         model = model.to(device)
         total_loss_b = 0.0
@@ -47,6 +47,8 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
             loss = loss_b + loss_c
             loss.backward()
             optimizer.step()
+            if (epoch+1)%5 == 0:
+                scheduler.step()
             # 统计总损失
             total_loss_b += loss_b
             total_loss_c += loss_c
@@ -55,7 +57,7 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
             f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.4f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
             f.write('\n')
             f.flush()
-    print(f"Finish {epoch+1}th epoch training.")
+    print(f"Finish {epoch}th epoch training.")
 
 def train():
     print('Quantization Aware Training SSD on: coco')
@@ -73,12 +75,13 @@ def train():
     torch.quantization.prepare_qat(model, inplace=True)
 
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     train_loader = get_coco_datasets(BATCH_SIZE, True)
     # test_loader = get_coco_datasets(BATCH_SIZE, False)
 
     start_epoch = model_load(model, optimizer, "./checkpoint/")
     for epoch in range(start_epoch, EPOCHS):
-        train_one_epoch(epoch,model,optimizer,train_loader,device)
+        train_one_epoch(epoch,model,optimizer,scheduler,train_loader,device)
         # if (epoch+1)%10 == 0:
         # test_per_ten_epoch(epoch,model,test_loader,device)
         model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{(epoch+1):02d}.pth')
