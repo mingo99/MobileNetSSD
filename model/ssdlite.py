@@ -95,8 +95,8 @@ def qssdlite320_mobilenet_v3_large(
     )
     _replace_relu(model)
     # Load weights
-    print("Load pretrained weights...")
     if weights is not None:
+        print("Load pretrained weights...")
         model.load_state_dict(weights.get_state_dict(progress=progress))
     return model
 
