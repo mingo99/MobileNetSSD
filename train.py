@@ -27,6 +27,7 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
     with open(f"./log/log_net{epoch+1:02d}.log", "w")as f:
         print(f'Epoch:{epoch+1}')
         model.train()
+        print(device)
         model = model.to(device)
         total_loss_b = 0.0
         total_loss_c = 0.0
@@ -84,6 +85,7 @@ def train():
     print(f"Learning Rate: {LR}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
     model = qssdlite320_mobilenet_v3_large()
     model.train()
     # Settings of QAT
@@ -93,9 +95,9 @@ def train():
 
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
     train_loader = get_coco_datasets(BATCH_SIZE, True)
-    test_loader = get_coco_datasets(BATCH_SIZE, False)
+    # test_loader = get_coco_datasets(BATCH_SIZE, False)
 
-    start_epoch = model_load(model, optimizer, "./checkpoint")
+    start_epoch = model_load(model, optimizer, "./checkpoint/")
     for epoch in range(start_epoch, EPOCHS):
         train_one_epoch(epoch,model,optimizer,train_loader,device)
         # if (epoch+1)%10 == 0:

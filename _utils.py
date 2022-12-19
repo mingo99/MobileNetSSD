@@ -27,17 +27,22 @@ def model_load(model, optimizer, PATH):
                 checkpoint = torch.load(PATH + path_list[-1])
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                if torch.cuda.is_available():
+                    for state in optimizer.state.values():
+                        for k, v in state.items():
+                            if torch.is_tensor(v):
+                                state[k] = v.cuda()
                 start_epoch = checkpoint['epoch'] + 1
                 print('Load checkpoint successfully!!!')
             else:
                 print('Can\'t found the .pth file in checkpoint and start from scratch!')
                 start_epoch = 0
         except FileNotFoundError:
-            print('Can\'t found the .pth file in checkpoint and start from scratch!')
+            print(f'Can\'t found the directory `{PATH}` and start from scratch!')
             start_epoch = 0
     else:
         start_epoch = 0
-        print("Can\'t find folder'checkpoint' and Start from scratch")
+        print("Can\'t find folder 'checkpoint' and Start from scratch")
     return start_epoch
 
 def get_fixed_point(float_x, m):
