@@ -20,7 +20,7 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
         total_loss_b = 0.0
         total_loss_c = 0.0
         for i, data in enumerate(train_loader):
-            if i>10: break
+            if i>5: break
             # 数据读取
             length = len(train_loader)
             images, targets = data
@@ -61,7 +61,9 @@ def test_per_ten_epoch(epoch, model, test_loader, device):
             images, targets = data
             images = images.to(device)
             outputs = model(images)
+            print(outputs)
             postprocess_as_ann(res_anns,targets,outputs,0.5)
+            if i>1:break
         print("Test done!")
     print(res_anns)
     anns_to_json(res_anns,dt_path)
@@ -83,13 +85,32 @@ def train():
     start_epoch = model_load(model, optimizer, "./checkpoint")
     for epoch in range(start_epoch, EPOCHS):
         train_one_epoch(epoch,model,optimizer,train_loader,device)
-        if (epoch+1)%10 == 0:
-            test_per_ten_epoch(epoch,model,test_loader,device)
+        # if (epoch+1)%10 == 0:
+        test_per_ten_epoch(epoch,model,test_loader,device)
         model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{(epoch+1):02d}.pth')
+    torch.quantization.convert(model, inplace=True)
+    torch.save(model, "./checkpoint/ckp_net_int8.pth")
 
 if __name__ == "__main__":
     # train()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = get_model(device,True)
-    test_loader = get_coco_datasets(BATCH_SIZE, False)
-    test_per_ten_epoch(9,model,test_loader,device)
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # model = get_model(device,True)
+    # test_loader = get_coco_datasets(BATCH_SIZE, False)
+    # test_per_ten_epoch(9,model,test_loader,device)
+    train_loader = get_coco_datasets(BATCH_SIZE, True)
+    print(train_loader)
+    for i, data in enumerate(train_loader):
+        if i>=2443:
+            images, targets = data
+            print(targets)
+            for target_idx, target in enumerate(targets):
+                boxes = target["boxes"]
+                degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
+                if degenerate_boxes.any():
+                    bb_idx = torch.where(degenerate_boxes.any(dim=1))[0][0]
+                    degen_bb: List[float] = boxes[bb_idx].tolist()
+                    torch._assert(
+                        False,
+                        "All bounding boxes should have positive height and width."
+                        f" Found invalid box {degen_bb} for target at index {target_idx} in image {ids[target_idx]}.",
+                    )
