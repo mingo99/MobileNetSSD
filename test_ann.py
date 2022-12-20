@@ -40,9 +40,14 @@ def test_bbox():
     cv2.waitKey(0)
 
 if __name__ == '__main__':
-    dataset = json.load(open(coco_ann_train, 'r'))
-    # print(dataset['annotations'][0])
-    with open("./coco_train_anns.json", 'w') as f:
-        json.dump(dataset, f, indent=4)
-    # model = get_model('cuda')
-    # print(model)
+    dataset = json.load(open(coco_ann_val, 'r'))
+    anns = []
+    for ann in dataset['annotations']:
+        anns.append({
+            "image_id": ann['image_id'],
+            "bbox": ann['bbox'],
+            "category_id": ann['category_id'],
+            "id": ann['id']
+        })
+    with open("./coco_val_anns.json", 'w') as f:
+        json.dump(anns, f, indent=4)
