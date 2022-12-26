@@ -2,7 +2,7 @@ import torch
 from datasets import get_coco_datasets, coco_eval
 from model import get_model, get_quant_model, qssdlite320_mobilenet_v3_large
 from _utils import model_save, model_load, postprocess_as_ann, anns_to_json
-import torchvision
+import json
 
 def eval_model(model, test_loader, device):
     dt_path = f"./eval_res/dt_anns.json"
@@ -29,5 +29,13 @@ if __name__ == "__main__":
     # model = torchvision.models.detection.ssd300_vgg16(pretrained=True,weights=weights)
     # test_loader = get_coco_datasets(32,False)
     # eval_model(model, test_loader, device)
-    dt_path = f"./eval_res/dt_anns.json"
+    # dt_path = f"./eval_res/ssdlite_dt_anns.json"
+    # dt_anns = json.load(open(dt_path, 'r'))
+    # for ann in dt_anns:
+    #     for i, loc in enumerate(ann['bbox']):
+    #         ann['bbox'][i] = round(loc,2)
+    #     ann['score'] = round(ann['score'],2)
+    # with open(f"./eval_res/ssdlite_dt_anns_new.json", 'w') as f:
+    #     json.dump(dt_anns, f, indent=4)
+    dt_path = f"./eval_res/ssdlite_dt_anns_new.json"
     coco_eval(dt_path,'bbox')

@@ -52,8 +52,8 @@ def train_one_epoch(epoch, model, optimizer, scheduler, train_loader, device):
             total_loss_b += loss_b
             total_loss_c += loss_c
             # 终端打印训练关键信息并保存为log文件
-            print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.4f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
-            f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.4f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
+            print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
+            f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
             f.write('\n')
             f.flush()
     print(f"Finish {epoch}th epoch training.")
@@ -75,11 +75,11 @@ def train():
 
     train_loader = get_coco_datasets(BATCH_SIZE, True)
     # test_loader = get_coco_datasets(BATCH_SIZE, False)
-    num_steps = len(train_loader)*EPOCHS
+    # num_steps = len(train_loader)*EPOCHS
 
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_steps, eta_min=0.0001)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=0.0001)
 
     start_epoch = model_load(model, optimizer, "./checkpoint/")
     for epoch in range(start_epoch, EPOCHS):
