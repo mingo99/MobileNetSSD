@@ -24,30 +24,12 @@ parser.add_argument('-lr', '--learning_rate', default=0.01, type=float,
                     help='Learning rate')
 args = parser.parse_args()
 
-<<<<<<< HEAD
-=======
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-e', '--epoch_num', default=100, type=int, 
-                    help='Indicate number of total train epochs')
-parser.add_argument('-b', '--batch_size', default=32, type=int,
-                    help='Batch size for training')
-parser.add_argument('-lr', '--learning_rate', default=0.01, type=float,
-                    help='Learning rate')
-args = parser.parse_args()
-
->>>>>>> 2788931bd068ea4815a4467c3920d25585f5e85a
 EPOCHS = args.epoch_num
 BATCH_SIZE = args.batch_size
 LR = args.learning_rate
 ITERS_ONE_EPOCH = (82782+BATCH_SIZE)//BATCH_SIZE
 
-<<<<<<< HEAD
 def train_one_epoch(epoch, model, optimizer, train_loader, device):
-=======
-def train_one_epoch(epoch, model, optimizer, scheduler, train_loader, device):
->>>>>>> 2788931bd068ea4815a4467c3920d25585f5e85a
     with open(f"./log/log_net{epoch:02d}.log", "w")as f:
         print(f'Epoch:{epoch}')
         model.train()
@@ -70,17 +52,11 @@ def train_one_epoch(epoch, model, optimizer, scheduler, train_loader, device):
             loss_c = losses['classification']
             loss = loss_b + loss_c
             loss.backward()
-<<<<<<< HEAD
             optimizer.step()               
-=======
-            optimizer.step()
-            scheduler.step()               
->>>>>>> 2788931bd068ea4815a4467c3920d25585f5e85a
             # 统计总损失
             # total_loss_b += loss_b
             # total_loss_c += loss_c
             # 终端打印训练关键信息并保存为log文件
-<<<<<<< HEAD
             # print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
             # f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
             print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {loss_b:.03f} | Loss_c: {loss_c:.03f}")
@@ -107,13 +83,6 @@ def test_in_train(epoch, net, test_loader, device):
         print("Test done!")
     anns_to_json(res_anns,dt_path)
     coco_eval(dt_path,'bbox')
-=======
-            print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
-            f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
-            f.write('\n')
-            f.flush()
-    print(f"Finish {epoch}th epoch training.")
->>>>>>> 2788931bd068ea4815a4467c3920d25585f5e85a
 
 def train():
     print('Quantization Aware Training SSD on: coco')
@@ -132,7 +101,6 @@ def train():
     model.qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
     torch.quantization.prepare_qat(model, inplace=True)
 
-<<<<<<< HEAD
     train_loader = get_coco_dataloader(BATCH_SIZE, True)
     test_loader = get_coco_dataloader(BATCH_SIZE, False)
     # num_steps = len(train_loader)*EPOCHS
@@ -147,21 +115,6 @@ def train():
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,test_loader,"cpu")
         # scheduler.step()
-=======
-    train_loader = get_coco_datasets(BATCH_SIZE, True)
-    # test_loader = get_coco_datasets(BATCH_SIZE, False)
-    # num_steps = len(train_loader)*EPOCHS
-
-    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
-    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=0.0001)
-
-    start_epoch = model_load(model, optimizer, "./checkpoint/")
-    for epoch in range(start_epoch, EPOCHS):
-        train_one_epoch(epoch,model,optimizer,scheduler,train_loader,device)
-        # if (epoch+1)%10 == 0:
-        # test_per_ten_epoch(epoch,model,test_loader,device)
->>>>>>> 2788931bd068ea4815a4467c3920d25585f5e85a
         model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{(epoch+1):02d}.pth')
     model.to('cpu')
     torch.quantization.convert(model, inplace=True)
