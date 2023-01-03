@@ -2,3 +2,4 @@ __pycache__/
 outputs/
 log/
 checkpoint/
+eval_res/
