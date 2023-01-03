@@ -34,8 +34,8 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
         print(f'Epoch:{epoch}')
         model.train()
         model = model.to(device)
-        # total_loss_b = 0.0
-        # total_loss_c = 0.0
+        total_loss_b = 0.0
+        total_loss_c = 0.0
         for i, data in enumerate(train_loader):
             # 数据读取
             length = len(train_loader)
@@ -54,13 +54,13 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device):
             loss.backward()
             optimizer.step()               
             # 统计总损失
-            # total_loss_b += loss_b
-            # total_loss_c += loss_c
+            total_loss_b += loss_b.item()
+            total_loss_c += loss_c.item()
             # 终端打印训练关键信息并保存为log文件
-            # print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
-            # f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
-            print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {loss_b:.03f} | Loss_c: {loss_c:.03f}")
-            f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {loss_b:.03f} | Loss_c: {loss_c:.03f}")
+            print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
+            f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {(total_loss_b/(i + 1)):.03f} | Loss_c: {(total_loss_c/(i + 1)):.03f}")
+            # print(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {loss_b:.03f} | Loss_c: {loss_c:.03f}")
+            # f.write(f"LR:{(optimizer.state_dict()['param_groups'][0]['lr']):.10f} | total_iter:{(i+1+epoch*length)} [iter:{i+1}/{ITERS_ONE_EPOCH} in epoch:{epoch}] | Loss_b: {loss_b:.03f} | Loss_c: {loss_c:.03f}")
             f.write('\n')
             f.flush()
     print(f"Finish {epoch}th epoch training.")
@@ -115,10 +115,10 @@ def train():
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,test_loader,"cpu")
         # scheduler.step()
-        model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{(epoch+1):02d}.pth')
+        model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{epoch:02d}.pth')
     model.to('cpu')
     torch.quantization.convert(model, inplace=True)
-    test_in_train(epoch,model,test_loader,device)
+    test_in_train(10,model,test_loader,device)
 
 if __name__ == "__main__":
     train()
