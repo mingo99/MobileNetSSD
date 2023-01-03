@@ -95,8 +95,8 @@ def qssdlite320_mobilenet_v3_large(
     )
     _replace_relu(model)
     # Load weights
-    print("Load pretrained weights...")
     if weights is not None:
+        print("Load pretrained weights...")
         model.load_state_dict(weights.get_state_dict(progress=progress))
     return model
 
@@ -135,4 +135,15 @@ def ssdlite_with_quant_weights(path):
     state_dict = torch.load(path)
     model.load_state_dict(state_dict)
     torch.quantization.convert(model, inplace=True)
+    return model
+
+def ssdlite_with_qat_weights(path):
+    model = qssdlite320_mobilenet_v3_large()
+    model.fuse_model(is_qat=True)
+    model.qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
+    torch.quantization.prepare_qat(model, inplace=True)
+    state_dict = torch.load(path)
+    model.load_state_dict(state_dict['model_state_dict'])
+    torch.quantization.convert(model, inplace=True)
+    model.eval()
     return model

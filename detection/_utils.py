@@ -24,7 +24,7 @@ def predict(image, model, device, detection_threshold):
     # get the predictions on the image
     with torch.no_grad():
         outputs = model(image) 
-    print(outputs)
+    # print(outputs)
     # get score for all the predicted objects
     pred_scores = outputs[0]['scores'].detach().cpu().numpy()
     # get all the predicted bounding boxes

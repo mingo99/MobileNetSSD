@@ -2,10 +2,10 @@ import torch
 import cv2
 import time
 from PIL import Image
-from model import get_model, get_quant_model, ssdlite_with_quant_weights
+from model import get_model, get_quant_model, ssdlite_with_quant_weights, ssdlite_with_qat_weights
 from ._utils import predict, draw_boxes
 
-def detect_image(input, threshold, quantize, quant_weights=False,path=None):
+def detect_image(input, threshold, quantize, quant_weights=False, path=None):
     """
     Test a image.
 
@@ -18,7 +18,8 @@ def detect_image(input, threshold, quantize, quant_weights=False,path=None):
         device = torch.device('cpu')
         if quant_weights:
             print(f"The computation device is {device} and model has loaded weights.")
-            model = ssdlite_with_quant_weights(path)
+            # model = ssdlite_with_quant_weights(path)
+            model = ssdlite_with_qat_weights(path)
         else:
             print(f"The computation device is {device}.")
             model = get_quant_model(device,path,False)

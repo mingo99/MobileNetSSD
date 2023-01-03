@@ -1,6 +1,7 @@
 import os
 import warnings
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -21,7 +22,7 @@ from torchvision.models.mobilenetv3 import (
     MobileNet_V3_Large_Weights
 )
 
-from datasets import get_coco_calibrate_datasets, get_coco_datasets
+from datasets import get_coco_calibrate_dataloader, get_coco_dataloader
 
 class QuantizableSSD(SSD):
     """
@@ -38,6 +39,85 @@ class QuantizableSSD(SSD):
                         detections_per_img, iou_thresh, topk_candidates, positive_fraction, **kwargs)
         self.quant = torch.quantization.QuantStub()
         self.dequant = torch.quantization.DeQuantStub()
+
+    def compute_loss(
+        self,
+        targets: List[Dict[str, Tensor]],
+        head_outputs: Dict[str, Tensor],
+        anchors: List[Tensor],
+        matched_idxs: List[Tensor],
+    ) -> Dict[str, Tensor]:
+        bbox_regression = head_outputs["bbox_regression"]
+        cls_logits = head_outputs["cls_logits"]
+
+        # Match original targets with default boxes
+        num_foreground = 0
+        bbox_loss = []
+        cls_targets = []
+        for (
+            targets_per_image,
+            bbox_regression_per_image,
+            cls_logits_per_image,
+            anchors_per_image,
+            matched_idxs_per_image,
+        ) in zip(targets, bbox_regression, cls_logits, anchors, matched_idxs):
+            # produce the matching between boxes and targets
+            foreground_idxs_per_image = torch.where(matched_idxs_per_image >= 0)[0]
+            foreground_matched_idxs_per_image = matched_idxs_per_image[foreground_idxs_per_image]
+            num_foreground += foreground_matched_idxs_per_image.numel()
+
+            # Calculate regression loss
+            matched_gt_boxes_per_image = targets_per_image["boxes"][foreground_matched_idxs_per_image]
+            bbox_regression_per_image = bbox_regression_per_image[foreground_idxs_per_image, :]
+            anchors_per_image = anchors_per_image[foreground_idxs_per_image, :]
+            target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
+            bbox_loss.append(
+                torch.nn.functional.smooth_l1_loss(bbox_regression_per_image, target_regression, reduction="sum")
+            )
+
+            # Estimate ground truth for class targets
+            gt_classes_target = torch.zeros(
+                (cls_logits_per_image.size(0),),
+                dtype=targets_per_image["labels"].dtype,
+                device=targets_per_image["labels"].device,
+            )
+            gt_classes_target[foreground_idxs_per_image] = targets_per_image["labels"][
+                foreground_matched_idxs_per_image
+            ]
+            cls_targets.append(gt_classes_target)
+
+        bbox_loss = torch.stack(bbox_loss)
+        cls_targets = torch.stack(cls_targets)
+
+        # Calculate classification loss
+        num_classes = cls_logits.size(-1)
+        cls_loss = F.cross_entropy(cls_logits.view(-1, num_classes), cls_targets.view(-1), reduction="none").view(
+            cls_targets.size()
+        )
+
+        # Hard Negative Sampling
+        foreground_idxs = cls_targets > 0
+        num_negative = self.neg_to_pos_ratio * foreground_idxs.sum(1, keepdim=True)
+        # num_negative[num_negative < self.neg_to_pos_ratio] = self.neg_to_pos_ratio
+        negative_loss = cls_loss.clone()
+        negative_loss[foreground_idxs] = -float("inf")  # use -inf to detect positive values that creeped in the sample
+        values, idx = negative_loss.sort(1, descending=True)
+        # background_idxs = torch.logical_and(idx.sort(1)[1] < num_negative, torch.isfinite(values))
+        background_idxs = idx.sort(1)[1] < num_negative
+
+        # N = max(1, num_foreground)
+        # return {
+        #     "bbox_regression": bbox_loss.sum() / N,
+        #     "classification": (cls_loss[foreground_idxs].sum() + cls_loss[background_idxs].sum()) / N,
+        # }
+        # 22/12/20 modified
+        N = max(0, num_foreground)
+        loss_b = 0.0 if N==0 else bbox_loss.sum() / N
+        loss_c = 0.0 if N==0 else (cls_loss[foreground_idxs].sum() + cls_loss[background_idxs].sum()) / N
+        return {
+            "bbox_regression": loss_b,
+            "classification": loss_c,
+        }
 
     def forward(
         self, images: List[Tensor], targets: Optional[List[Dict[str, Tensor]]] = None
@@ -189,7 +269,7 @@ def quantize_model(
             if not os.path.exists(dir):
                 os.makedirs(dir)
             model.to(device)
-            for i, data in enumerate(get_coco_datasets(batch_size, False)):
+            for i, data in enumerate(get_coco_dataloader(batch_size, False)):
                 print(f"Epoch: {epoch} | Iter: {i}")
                 image = data[0].to(device)
                 model(image)

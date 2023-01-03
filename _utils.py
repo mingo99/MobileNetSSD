@@ -27,17 +27,22 @@ def model_load(model, optimizer, PATH):
                 checkpoint = torch.load(PATH + path_list[-1])
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                if torch.cuda.is_available():
+                    for state in optimizer.state.values():
+                        for k, v in state.items():
+                            if torch.is_tensor(v):
+                                state[k] = v.cuda()
                 start_epoch = checkpoint['epoch'] + 1
                 print('Load checkpoint successfully!!!')
             else:
                 print('Can\'t found the .pth file in checkpoint and start from scratch!')
                 start_epoch = 0
         except FileNotFoundError:
-            print('Can\'t found the .pth file in checkpoint and start from scratch!')
+            print(f'Can\'t found the directory `{PATH}` and start from scratch!')
             start_epoch = 0
     else:
         start_epoch = 0
-        print("Can\'t find folder'checkpoint' and Start from scratch")
+        print("Can\'t find folder 'checkpoint' and Start from scratch")
     return start_epoch
 
 def get_fixed_point(float_x, m):
@@ -68,15 +73,15 @@ def postprocess_as_ann(res_anns, targets, outputs, detection_threshold):
             box[2] = box[2] - box[0]
             box[3] = box[3] - box[1]
             ann = {"image_id": targets[i]['image_id'].item(),
-                    "category_id": label,
                     "bbox": box.tolist(),
-                    "score": score
+                    "score": score,
+                    "category_id": label
             }
             res_anns.append(ann)
 
 def anns_to_json(anns, path):
     with open(path, 'w') as f:
-        json.dump(anns, f, indent=4, cls=NumpyEncoder)
+        json.dump(anns, f, cls=NumpyEncoder)
 
 if __name__ == "__main__":
     pass

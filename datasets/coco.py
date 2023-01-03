@@ -70,7 +70,7 @@ transform = transforms.Compose([
 coco_root = "../../data/coco/"
 coco_img_train = coco_root+"images/train2014/"
 coco_img_val = coco_root+"images/val2014/"
-coco_ann_train = coco_root+"annotations/instances_train2014.json"
+coco_ann_train = coco_root+"annotations/instances_train2014_new.json"
 coco_ann_val = coco_root+"annotations/instances_val2014.json"
 
 def coco_collate(batch):
@@ -103,7 +103,7 @@ def coco_collate(batch):
         targets.append(target)
     return torch.stack(images, 0), targets
 
-def get_coco_datasets(batch_size,train=True):
+def get_coco_dataloader(batch_size,train=True):
     if train:
         print("Loading train set...")
         dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
@@ -112,7 +112,7 @@ def get_coco_datasets(batch_size,train=True):
         dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
     return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
 
-def get_coco_calibrate_datasets(batch_size: Optional[int] = 1):
+def get_coco_calibrate_dataloader(batch_size: Optional[int] = 1):
     """
     Select 5% of validation set as calibration set for quantization.
     """
