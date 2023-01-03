@@ -144,6 +144,6 @@ def ssdlite_with_qat_weights(path):
     torch.quantization.prepare_qat(model, inplace=True)
     state_dict = torch.load(path)
     model.load_state_dict(state_dict['model_state_dict'])
-    torch.quantization.convert(model, inplace=True)
     model.eval()
+    torch.quantization.convert(model, inplace=True)
     return model

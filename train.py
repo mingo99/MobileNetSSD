@@ -117,7 +117,7 @@ def train():
         train_one_epoch(epoch,model,optimizer,train_loader,device)
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,test_loader,"cpu")
-        scheduler.step()
+        # scheduler.step()
         model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{epoch:02d}.pth')
     model.to('cpu')
     torch.quantization.convert(model, inplace=True)
