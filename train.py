@@ -112,6 +112,8 @@ def train():
 
     start_epoch = model_load(model, optimizer, "./checkpoint/")
     for epoch in range(start_epoch, EPOCHS):
+        model.train()
+        _ = model_load(model, optimizer, "./checkpoint/")
         train_one_epoch(epoch,model,optimizer,train_loader,device)
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,test_loader,"cpu")
