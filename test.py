@@ -18,8 +18,9 @@ def simple_test():
     if args['video']:
         detect_video(args['input'],args['threshold'],args['quantize'])
     else:
-        detect_image(args['input'],args['threshold'],args['quantize'],True,"./checkpoint/ckp_net56.pth")
+        # detect_image(args['input'],args['threshold'],args['quantize'],True,"./checkpoint/ckp_net19.pth")
         # detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/epoch0/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
+        detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/ssdlite320_mobilenet_v3_large_calibrated_model_pre_dummy.pth")
 
 if __name__ == "__main__":
     simple_test()
