@@ -106,7 +106,8 @@ def train():
     # num_steps = len(train_loader)*EPOCHS
 
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
-    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    # scheduler = optim.lr_scheduler.LinearLR(optimizer, gamma=0.9)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
     start_epoch = model_load(model, optimizer, "./checkpoint/")
@@ -114,7 +115,7 @@ def train():
         train_one_epoch(epoch,model,optimizer,train_loader,device)
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,test_loader,"cpu")
-        # scheduler.step()
+        scheduler.step()
         model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/ckp_net{epoch:02d}.pth')
     model.to('cpu')
     torch.quantization.convert(model, inplace=True)
