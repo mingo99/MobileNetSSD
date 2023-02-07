@@ -277,8 +277,10 @@ def quantize_model(
         torch.save(model.state_dict(),path)
         print("Calibrate done.")
     else:
-        _dummy_input_data = torch.rand(1, 3, 320, 320)
-        model(_dummy_input_data)
+        for i in range(1024):
+            print(f"The {i}th calibration.")
+            _dummy_input_data = torch.rand(1, 3, 320, 320)
+            model(_dummy_input_data)
         torch.save(model.state_dict(),"./weights/ssdlite320_mobilenet_v3_large_calibrated_model_pre_dummy.pth")
     torch.quantization.convert(model, inplace=True)
 
