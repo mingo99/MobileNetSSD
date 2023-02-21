@@ -22,14 +22,15 @@ parser.add_argument('-b', '--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('-lr', '--learning_rate', default=0.01, type=float,
                     help='Learning rate')
+parser.add_argument('-ds', '--ds_root', default='../../data/cocofb/', type=str,
+                    help='The root path of dataset.')
 args = parser.parse_args()
 
 EPOCHS = args.epoch_num
 BATCH_SIZE = args.batch_size
 LR = args.learning_rate
-ITERS_ONE_EPOCH = (82782+BATCH_SIZE)//BATCH_SIZE
 
-def train_one_epoch(epoch, model, optimizer, train_loader, device):
+def train_one_epoch(epoch, model, optimizer, train_loader, device, ITERS_ONE_EPOCH):
     with open(f"./log/log_net{epoch:02d}.log", "w")as f:
         print(f'Epoch:{epoch}')
         model.train()
@@ -95,9 +96,10 @@ def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = get_model(device, True)
 
-    trainset = CocoDataset('cocofb', 2023, 'train')
-    valset = CocoDataset('cocofb', 2023, 'val')
+    trainset = CocoDataset(args.ds_root, 2023, 'train')
+    valset = CocoDataset(args.ds_root, 2023, 'val')
     train_loader = trainset.get_coco_dataloader(BATCH_SIZE)
+    ITERS_ONE_EPOCH = (trainset.dataset.__len__()+BATCH_SIZE)//BATCH_SIZE
     # num_steps = len(train_loader)*EPOCHS
 
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
@@ -109,7 +111,7 @@ def train():
     for epoch in range(start_epoch, EPOCHS):
         model.train()
         _ = model_load(model, optimizer, "./checkpoint/normal/")
-        train_one_epoch(epoch,model,optimizer,train_loader,device)
+        train_one_epoch(epoch,model,optimizer,train_loader,device,ITERS_ONE_EPOCH)
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,valset,device)
         scheduler.step()

@@ -70,10 +70,9 @@ class CocoDataset():
         version: `2014` and `2017` of coco, `2023` of cocofb
         set_name: `train` or `val`
     """
-    def __init__(self, dataset_name: str, version: int, set_name: str) -> None:
-        self.dataset_name = dataset_name
+    def __init__(self, root:str, version: int, set_name: str) -> None:
+        self.coco_root = root
         self.version = version
-        self.coco_root = f"../../data/{self.dataset_name}/"
         self.coco_img_path = self.coco_root+f"images/{set_name}{self.version}/"
         self.coco_ann_path = self.coco_root+f"annotations/instances_{set_name}{self.version}.json"
 
@@ -151,9 +150,10 @@ class CocoDataset():
         cocoEval.summarize()
 
 if __name__ == "__main__":
-    dataset = CocoDataset('cocofb', 2023, 'train')
-    id = dataset.coco.getAnnIds(imgIds=262145)
-    anns = dataset.coco.loadAnns(id)
-    print(len(anns))
-    for ann in anns:
-        print(ann['bbox'])
+    dataset = CocoDataset('../../data/cocofb/', 2023, 'train')
+    print(dataset.dataset.__len__())
+    # id = dataset.coco.getAnnIds(imgIds=262145)
+    # anns = dataset.coco.loadAnns(id)
+    # print(len(anns))
+    # for ann in anns:
+    #     print(ann['bbox'])
