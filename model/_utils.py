@@ -22,7 +22,7 @@ from torchvision.models.mobilenetv3 import (
     MobileNet_V3_Large_Weights
 )
 
-from datasets import get_coco_calibrate_dataloader, get_coco_dataloader
+from datasets import CocoDataset
 
 class QuantizableSSD(SSD):
     """
@@ -264,12 +264,13 @@ def quantize_model(
         device = torch.device('cpu')
         print(f"Calibrate is enable, open {device} as computation device.")
         print("Calibrating...")
+        dataset = CocoDataset('coco', 2014, 'val')
         for epoch in range(epochs):
             dir = f"./weights/epoch{epoch}"
             if not os.path.exists(dir):
                 os.makedirs(dir)
             model.to(device)
-            for i, data in enumerate(get_coco_dataloader(batch_size, False)):
+            for i, data in enumerate(dataset.get_coco_dataloader(batch_size)):
                 print(f"Epoch: {epoch} | Iter: {i}")
                 image = data[0].to(device)
                 model(image)

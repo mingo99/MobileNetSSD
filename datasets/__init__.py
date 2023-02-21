@@ -1,10 +1,8 @@
-from .coco import CocoDetection, get_coco_dataloader, get_coco_calibrate_dataloader, coco_eval
+from .coco import CocoDetection, CocoDataset
 from .coco_names import COCO_INSTANCE_CATEGORY_NAMES
 
 __all__ = [
     "CocoDetection",
-    "get_coco_dataloader",
-    "get_coco_calibrate_dataloader",
-    "coco_eval",
+    "CocoDataset",
     "COCO_INSTANCE_CATEGORY_NAMES"
 ]

@@ -138,7 +138,6 @@ class CocoDataset():
         print(f"Batch size: {batch_size}")
         return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate)
 
-
     def coco_eval(self, dt_path, iou_type):
         """
         Args:
