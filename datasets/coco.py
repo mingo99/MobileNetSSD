@@ -62,90 +62,98 @@ class CocoDetection(VisionDataset):
     def __len__(self) -> int:
         return len(self.ids)
 
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Resize((320,320))
-])
-
-coco_root = "../../data/coco/"
-coco_img_train = coco_root+"images/train2014/"
-coco_img_val = coco_root+"images/val2014/"
-coco_ann_train = coco_root+"annotations/instances_train2014_new.json"
-coco_ann_val = coco_root+"annotations/instances_val2014.json"
-
-def coco_collate(batch):
-    """Custom collate fn for dealing with batches of images that have a different
-    number of associated object annotations (bounding boxes).
-    Arguments:
-        batch(Tuple): A tuple of tensor images and lists of annotations
-    Return:
-        A tuple containing:
-            images(Tensor): batch of images stacked on their 0 dim
-            targets(List[Dict[str, Tensor]]): annotations for a given image are stacked on 0 dim
+class CocoDataset():
+    """ 
+    Get the images and annotations of COCO dataset.
+    Params:
+        dataset_name: `coco` or `cocofb`
+        version: `2014` and `2017` of coco, `2023` of cocofb
+        set_name: `train` or `val`
     """
-    targets = []
-    images = []
-    for sample in batch:
-        images.append(sample[0])
-        target = defaultdict(list)
-        for ann in sample[1]:
-            ann['bbox'][2] = ann['bbox'][0]+ann['bbox'][2]
-            ann['bbox'][3] = ann['bbox'][1]+ann['bbox'][3]
-            target['boxes'].append(torch.FloatTensor(ann['bbox']))
-            target['labels'].append(ann['category_id'])
-        
-        if target['boxes']:
-            target['boxes'] = torch.stack(target['boxes'])
-        else:
-            target['boxes'] = torch.zeros((0, 4), dtype=torch.float32)
-        target['labels'] = torch.tensor(target['labels'],dtype=torch.long)
-        target['image_id'] = torch.tensor(sample[2],dtype=torch.long)
-        targets.append(target)
-    return torch.stack(images, 0), targets
+    def __init__(self, dataset_name: str, version: int, set_name: str) -> None:
+        self.dataset_name = dataset_name
+        self.version = version
+        self.coco_root = f"../../data/{self.dataset_name}/"
+        self.coco_img_path = self.coco_root+f"images/{set_name}{self.version}/"
+        self.coco_ann_path = self.coco_root+f"annotations/instances_{set_name}{self.version}.json"
 
-def get_coco_dataloader(batch_size,train=True):
-    if train:
-        print("Loading train set...")
-        dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
-    else:
-        print("Loading validation set...")
-        dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
-    return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((320,320))
+        ])
+        self.dataset = CocoDetection(self.coco_img_path,self.coco_ann_path,transform=self.transform)
+        self.coco = self.dataset.coco
 
-def get_coco_calibrate_dataloader(batch_size: Optional[int] = 1):
-    """
-    Select 5% of validation set as calibration set for quantization.
-    """
-    # random.seed(12345)
-    dataset = CocoDetection(coco_img_val,coco_ann_val,transform=transform)
-    calibImgIds = []
-    for catId in dataset.coco.getCatIds():
-        imgIds = dataset.coco.getImgIds(catIds=catId)
-        slice_len = (len(imgIds)+19)//20
-        imgIds_calib = random.sample(imgIds,slice_len)
-        calibImgIds.extend(imgIds_calib)
-    calibImgIds = list(set(calibImgIds))
-    calibImgIds = sorted(calibImgIds)
-    dataset.ids = calibImgIds
-    print(f"Batch size: {batch_size}")
-    return DataLoader(dataset,batch_size=batch_size,collate_fn=coco_collate)
+    def coco_collate(self, batch):
+        """Custom collate fn for dealing with batches of images that have a different
+        number of associated object annotations (bounding boxes).
+        Arguments:
+            batch(Tuple): A tuple of tensor images and lists of annotations
+        Return:
+            A tuple containing:
+                images(Tensor): batch of images stacked on their 0 dim
+                targets(List[Dict[str, Tensor]]): annotations for a given image are stacked on 0 dim
+        """
+        targets = []
+        images = []
+        for sample in batch:
+            images.append(sample[0])
+            target = defaultdict(list)
+            for ann in sample[1]:
+                ann['bbox'][2] = ann['bbox'][0]+ann['bbox'][2]
+                ann['bbox'][3] = ann['bbox'][1]+ann['bbox'][3]
+                target['boxes'].append(torch.FloatTensor(ann['bbox']))
+                target['labels'].append(ann['category_id'])
+            
+            if target['boxes']:
+                target['boxes'] = torch.stack(target['boxes'])
+            else:
+                target['boxes'] = torch.zeros((0, 4), dtype=torch.float32)
+            target['labels'] = torch.tensor(target['labels'],dtype=torch.long)
+            target['image_id'] = torch.tensor(sample[2],dtype=torch.long)
+            targets.append(target)
+        return torch.stack(images, 0), targets
+
+    def get_coco_dataset(self) -> CocoDetection:
+        return self.dataset
+
+    def get_coco_dataloader(self, batch_size) -> DataLoader:
+        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate)
+
+    def get_coco_calibrate_dataloader(self, batch_size: Optional[int] = 1) -> DataLoader:
+        """
+        Select 5% of validation set as calibration set for quantization.
+        The argument `set_name` must be `val`.
+        """
+        # random.seed(12345)
+        calibImgIds = []
+        for catId in self.coco.getCatIds():
+            imgIds = self.coco.getImgIds(catIds=catId)
+            slice_len = (len(imgIds)+19)//20
+            imgIds_calib = random.sample(imgIds,slice_len)
+            calibImgIds.extend(imgIds_calib)
+        calibImgIds = list(set(calibImgIds))
+        calibImgIds = sorted(calibImgIds)
+        self.dataset.ids = calibImgIds
+        print(f"Batch size: {batch_size}")
+        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate)
 
 
-def coco_eval(dt_path, iou_type):
-    """
-    Args:
-        iou_type: `segm`, `bbox`, `keypoints`
-    """
-    cocoGt = COCO(coco_ann_val)
-    cocoDt = cocoGt.loadRes(dt_path)
-    cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
+    def coco_eval(self, dt_path, iou_type):
+        """
+        Args:
+            iou_type: `segm`, `bbox`, `keypoints`
+        """
+        cocoGt = COCO(self.coco_ann_val)
+        cocoDt = cocoGt.loadRes(dt_path)
+        cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+        cocoEval.summarize()
 
 if __name__ == "__main__":
-    dataset = CocoDetection(coco_img_train,coco_ann_train,transform=transform)
-    id = dataset.coco.getAnnIds(imgIds=550395)
+    dataset = CocoDataset('cocofb', 2023, 'train')
+    id = dataset.coco.getAnnIds(imgIds=262145)
     anns = dataset.coco.loadAnns(id)
     print(len(anns))
     for ann in anns:
