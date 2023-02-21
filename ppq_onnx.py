@@ -13,7 +13,7 @@ from ppq.quantization.analyse.graphwise import graphwise_error_analyse
 INPUT_SHAPES     = {'input': [1, 3, 320, 320]}
 DEVICE           = 'cuda'
 QUANT_PLATFORM   = TargetPlatform.TRT_INT8
-ONNX_PATH        = 'onnx/ssdlite.onnx'
+ONNX_PATH        = 'onnx/ssdlite_without_output.onnx'
 ONNX_OUTPUT_PATH = 'onnx/model.onnx'
 
 # ------------------------------------------------------------
