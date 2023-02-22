@@ -97,7 +97,7 @@ class CocoDataset():
         images = []
         for sample in batch:
             images.append(sample[0])
-            target = defaultdict(list)
+            target = {'boxes':[],'labels':[]}
             for ann in sample[1]:
                 ann['bbox'][2] = ann['bbox'][0]+ann['bbox'][2]
                 ann['bbox'][3] = ann['bbox'][1]+ann['bbox'][3]
@@ -117,7 +117,7 @@ class CocoDataset():
         return self.dataset
 
     def get_coco_dataloader(self, batch_size) -> DataLoader:
-        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate)
+        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate, drop_last=True)
 
     def get_coco_calibrate_dataloader(self, batch_size: Optional[int] = 1) -> DataLoader:
         """
@@ -135,7 +135,7 @@ class CocoDataset():
         calibImgIds = sorted(calibImgIds)
         self.dataset.ids = calibImgIds
         print(f"Batch size: {batch_size}")
-        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate)
+        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate, drop_last=True)
 
     def coco_eval(self, dt_path, iou_type):
         """
@@ -151,7 +151,10 @@ class CocoDataset():
 
 if __name__ == "__main__":
     dataset = CocoDataset('../../data/cocofb/', 2023, 'train')
-    print(dataset.dataset.__len__())
+    data = dataset.get_coco_dataloader(16)
+    for i in data:
+        print(type(i[1]))
+        break
     # id = dataset.coco.getAnnIds(imgIds=262145)
     # anns = dataset.coco.loadAnns(id)
     # print(len(anns))

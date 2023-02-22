@@ -101,17 +101,22 @@ def qssdlite320_mobilenet_v3_large(
     return model
 
 
-def get_model(device, pretrained: bool=True):
+def get_model(device, pretrained: bool=True) -> SSD:
     """
     Get the SSDLite320_MobileNet_V3_Large model.
     """
     # load the model 
     weights=torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
     model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained=pretrained,weights=weights)
+    if torch.cuda.is_available():
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            model = nn.DataParallel(model)
     # load the model onto the computation device
-    return model.eval().to(device)
+    return model.to(device)
 
-def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[int]=1, epochs: Optional[int]=1):
+def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[int]=1, epochs: Optional[int]=1) -> QuantizableSSD:
     """
     Get the quantizable SSDLite320_MobileNet_V3_Large model.
     """

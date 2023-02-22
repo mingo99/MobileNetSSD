@@ -34,7 +34,7 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device, ITERS_ONE_EPO
     with open(f"./log/log_net{epoch:02d}.log", "w")as f:
         print(f'Epoch:{epoch}')
         model.train()
-        model = model.to(device)
+        # model = model.to(device)
         total_loss_b = 0.0
         total_loss_c = 0.0
         for i, data in enumerate(train_loader):
@@ -66,11 +66,9 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device, ITERS_ONE_EPO
             f.flush()
     print(f"Finish {epoch}th epoch training.")
 
-def test_in_train(epoch, net, valset: CocoDataset, device):
+def test_in_train(epoch, model, valset: CocoDataset, device):
     dt_path = f"./eval_res/dt_anns_{epoch:03d}.json"
     val_loader = valset.get_coco_dataloader(BATCH_SIZE)
-    model = net.to(device)
-    model = torch.quantization.convert(net)
     model.eval()
     res_anns = []
     with torch.no_grad():
@@ -85,6 +83,26 @@ def test_in_train(epoch, net, valset: CocoDataset, device):
         print("Test done!")
     anns_to_json(res_anns,dt_path)
     valset.coco_eval(dt_path,'bbox')
+
+# def qat_test_in_train(epoch, net, valset: CocoDataset, device):
+#     dt_path = f"./eval_res/dt_anns_{epoch:03d}.json"
+#     val_loader = valset.get_coco_dataloader(BATCH_SIZE)
+#     model = net.to(device)
+#     model = torch.quantization.convert(net)
+#     model.eval()
+#     res_anns = []
+#     with torch.no_grad():
+#         for i, data in enumerate(val_loader):
+#             print(f"Test {i}th batch...")
+#             # 数据读取
+#             length = len(val_loader)
+#             images, targets = data
+#             images = images.to(device)
+#             outputs = model(images)
+#             postprocess_as_ann(res_anns,targets,outputs,0.3)
+#         print("Test done!")
+#     anns_to_json(res_anns,dt_path)
+#     valset.coco_eval(dt_path,'bbox')
 
 def train():
     print('Training SSD on: coco')
