@@ -142,7 +142,7 @@ class CocoDataset():
         Args:
             iou_type: `segm`, `bbox`, `keypoints`
         """
-        cocoGt = COCO(self.coco_ann_val)
+        cocoGt = COCO(self.coco_ann_path)
         cocoDt = cocoGt.loadRes(dt_path)
         cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
         cocoEval.evaluate()
