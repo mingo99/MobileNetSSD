@@ -130,10 +130,10 @@ def train():
         model.train()
         _ = model_load(model, optimizer, "./checkpoint/normal/")
         train_one_epoch(epoch,model,optimizer,train_loader,device,ITERS_ONE_EPOCH)
+        model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/normal/ckp_net{epoch:02d}.pth')
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,valset,device)
         scheduler.step()
-        model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/normal/ckp_net{epoch:02d}.pth')
     test_in_train(EPOCHS,model,valset,device)
 
 # def qat_train():
