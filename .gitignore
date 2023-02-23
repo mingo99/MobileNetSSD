@@ -3,4 +3,4 @@ outputs/
 log/
 checkpoint/
 eval_res/
-*.out
+server_log/
