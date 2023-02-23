@@ -128,6 +128,13 @@ def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[in
     # load the model onto the computation device
     return model.to(device)
 
+def ssdlite_with_weights(path, device):
+    model = get_model(device,False)
+    state_dict = torch.load(path)
+    model.load_state_dict(state_dict['model_state_dict'])
+    model.eval()
+    return model
+
 def ssdlite_with_quant_weights(path):
     model = qssdlite320_mobilenet_v3_large()
     model.eval()
