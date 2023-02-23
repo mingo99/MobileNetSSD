@@ -112,7 +112,7 @@ def train():
     print(f"Learning Rate: {LR}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = get_model(device, True)
+    model = get_model(device, False)
 
     trainset = CocoDataset(args.ds_root, 2023, 'train')
     valset = CocoDataset(args.ds_root, 2023, 'val')
