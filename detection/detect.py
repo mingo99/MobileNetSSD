@@ -31,7 +31,7 @@ def detect_image(input, threshold, quantize, load_weight=False, path=None):
             model = ssdlite_with_weights(path, device)
         else:
             print(f"The computation device is {device}.")
-            model = get_model(device)
+            model = get_model(device, False)
             model.eval()
     # read the image
     image = Image.open(input)
