@@ -33,7 +33,7 @@ LR = args.learning_rate
 def train_one_epoch(epoch, model, optimizer, train_loader, device, ITERS_ONE_EPOCH):
     with open(f"./log/log_net{epoch:02d}.log", "w")as f:
         print(f'Epoch:{epoch}')
-        model.train()
+        # model.train()
         # model = model.to(device)
         total_loss_b = 0.0
         total_loss_c = 0.0
@@ -131,9 +131,10 @@ def train():
     start_epoch = model_load(model, optimizer, "./checkpoint/normal/")
     for epoch in range(start_epoch, EPOCHS):
         train_one_epoch(epoch,model,optimizer,train_loader,device,ITERS_ONE_EPOCH)
-        # scheduler.step()
+        scheduler.step()
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,valset,device)
+        if (epoch+1)%5 == 0:
             model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/normal/ckp_net{epoch:02d}.pth')
     test_in_train(EPOCHS,model,valset,device)
 
