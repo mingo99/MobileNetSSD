@@ -73,8 +73,9 @@ class CocoDataset():
     def __init__(self, root:str, version: int, set_name: str) -> None:
         self.coco_root = root
         self.version = version
-        self.coco_img_path = self.coco_root+f"images/{set_name}{self.version}/"
-        self.coco_ann_path = self.coco_root+f"annotations/instances_{set_name}{self.version}.json"
+        self.setname = set_name
+        self.coco_img_path = self.coco_root+f"images/{self.setname}{self.version}/"
+        self.coco_ann_path = self.coco_root+f"annotations/instances_{self.setname}{self.version}.json"
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -82,6 +83,7 @@ class CocoDataset():
         ])
         self.dataset = CocoDetection(self.coco_img_path,self.coco_ann_path,transform=self.transform)
         self.coco = self.dataset.coco
+        self.shuffle = True if self.setname == "train" else False
 
     def coco_collate(self, batch):
         """Custom collate fn for dealing with batches of images that have a different
@@ -117,7 +119,7 @@ class CocoDataset():
         return self.dataset
 
     def get_coco_dataloader(self, batch_size) -> DataLoader:
-        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate, drop_last=True)
+        return DataLoader(self.dataset,batch_size=batch_size,collate_fn=self.coco_collate, shuffle=self.shuffle)
 
     def get_coco_calibrate_dataloader(self, batch_size: Optional[int] = 1) -> DataLoader:
         """
