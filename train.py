@@ -84,6 +84,7 @@ def test_in_train(epoch, model, valset: CocoDataset, device):
         print("Test done!")
     anns_to_json(res_anns,dt_path)
     valset.coco_eval(dt_path,'bbox')
+    model.train()
 
 # def qat_test_in_train(epoch, net, valset: CocoDataset, device):
 #     dt_path = f"./eval_res/dt_anns_{epoch:03d}.json"
@@ -114,6 +115,7 @@ def train():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = get_model(device, False)
+    model.train()
 
     trainset = CocoDataset(args.ds_root, 2023, 'train')
     valset = CocoDataset(args.ds_root, 2023, 'val')
@@ -128,7 +130,6 @@ def train():
 
     start_epoch = model_load(model, optimizer, "./checkpoint/normal/")
     for epoch in range(start_epoch, EPOCHS):
-        model.train()
         train_one_epoch(epoch,model,optimizer,train_loader,device,ITERS_ONE_EPOCH)
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,valset,device)
