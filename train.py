@@ -45,13 +45,13 @@ def train_one_epoch(epoch, model, optimizer, train_loader, device, ITERS_ONE_EPO
             for target in targets:
                 target["boxes"] = target["boxes"].to(device)
                 target["labels"] = target["labels"].to(device)
-            # 梯度清零
-            optimizer.zero_grad()
-            # forward + backward
+            # forward
             losses = model(images, targets)
+            # backward
             loss_b = losses['bbox_regression'] 
             loss_c = losses['classification']
             loss = loss_b + loss_c
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()               
             # 统计总损失
