@@ -3,6 +3,7 @@ from model import get_model, get_quant_model, qssdlite320_mobilenet_v3_large
 from _utils import model_save, model_load, postprocess_as_ann, anns_to_json
 from detection import predict, draw_boxes
 from typing import List
+from tqdm import tqdm
 
 import cv2
 from PIL import Image
@@ -73,15 +74,13 @@ def test_in_train(epoch, model, valset: CocoDataset, device):
     model.eval()
     res_anns = []
     with torch.no_grad():
-        for i, data in enumerate(val_loader):
-            print(f"Test {i}th batch...")
+        for i, data in enumerate(tqdm(val_loader, desc="Evaluation")):
             # 数据读取
             length = len(val_loader)
             images, targets = data
             images = images.to(device)
             outputs = model(images)
             postprocess_as_ann(res_anns,targets,outputs,0.3)
-        print("Test done!")
     anns_to_json(res_anns,dt_path)
     valset.coco_eval(dt_path,'bbox')
     model.train()
