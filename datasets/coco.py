@@ -2,6 +2,7 @@ import os.path
 import random
 import torch
 import torchvision.transforms as transforms
+import transforms as T
 from typing import Any, Callable, Optional, Tuple, List
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -77,11 +78,14 @@ class CocoDataset():
         self.coco_img_path = self.coco_root+f"images/{self.setname}{self.version}/"
         self.coco_ann_path = self.coco_root+f"annotations/instances_{self.setname}{self.version}.json"
 
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((320,320))
+        self.transforms = T.Compose([
+            T.RandomIoUCrop(),
+            T.RandomHorizontalFlip(),
+            T.PILToTensor(),
+            T.ConvertImageDtype(torch.float),
+            T.Rezise((320,320))
         ])
-        self.dataset = CocoDetection(self.coco_img_path,self.coco_ann_path,transform=self.transform)
+        self.dataset = CocoDetection(self.coco_img_path,self.coco_ann_path,transforms=self.transforms)
         self.coco = self.dataset.coco
         self.shuffle = True if self.setname == "train" else False
 

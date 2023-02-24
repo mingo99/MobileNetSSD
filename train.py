@@ -122,7 +122,7 @@ def train():
     ITERS_ONE_EPOCH = (trainset.dataset.__len__()+BATCH_SIZE)//BATCH_SIZE
     # num_steps = len(train_loader)*EPOCHS
 
-    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4)
+    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=4e-5)
     # scheduler = optim.lr_scheduler.LinearLR(optimizer, gamma=0.9)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
@@ -130,11 +130,10 @@ def train():
     start_epoch = model_load(model, optimizer, "./checkpoint/normal/")
     for epoch in range(start_epoch, EPOCHS):
         train_one_epoch(epoch,model,optimizer,train_loader,device,ITERS_ONE_EPOCH)
-        scheduler.step()
         if (epoch+1)%10 == 0:
             test_in_train(epoch,model,valset,device)
-        if (epoch+1)%5 == 0:
-            model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/normal/ckp_net{epoch:02d}.pth')
+        scheduler.step()
+        model_save(epoch, model.state_dict(), optimizer.state_dict(), f'./checkpoint/normal/ckp_net{epoch:02d}.pth')
     test_in_train(EPOCHS,model,valset,device)
 
 # def qat_train():
