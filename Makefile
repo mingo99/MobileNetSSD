@@ -1,5 +1,5 @@
 run_server:
-	sbatch --gpus=1 run.sh 100 128 0.01
+	sbatch --gpus=1 run.sh 660 24 4 0.15
 
 run_pc:
-	python train.py -e=100 -b=16 -lr=0.01
+	python train.py -e=660 -b=24 -n=4 -lr=0.15

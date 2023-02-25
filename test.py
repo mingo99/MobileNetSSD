@@ -9,7 +9,7 @@ def simple_test():
                         help='indicate test whether video or image')
     parser.add_argument('-i', '--input', default='samples/image_1.jpg', 
                         help='path to input input image')
-    parser.add_argument('-t', '--threshold', default=0.5, type=float,
+    parser.add_argument('-t', '--threshold', default=0.2, type=float,
                         help='detection threshold')
     parser.add_argument('-q', '--quantize', default=False, type=bool,
                         help='whether to quantize model')
@@ -20,7 +20,7 @@ def simple_test():
     else:
         # detect_image(args['input'],args['threshold'],args['quantize'],True,"./checkpoint/ckp_net19.pth")
         # detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/epoch0/ssdlite320_mobilenet_v3_large_calibrated_model_pre.pth")
-        detect_image(args['input'],args['threshold'],args['quantize'],False,"./checkpoint/normal/ckp_net00.pth")
+        detect_image(args['input'],args['threshold'],args['quantize'],True,"./checkpoint/normal/ckp_net47.pth")
 
 if __name__ == "__main__":
     simple_test()

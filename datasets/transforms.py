@@ -26,17 +26,9 @@ class Compose:
             image, target = t(image, target)
         return image, target
 
-
-class Rezise(T.Resize):
+class Resize(T.Resize):
     def forward(self, img, target):
-        """
-        Args:
-            img (PIL Image or Tensor): Image to be scaled.
-
-        Returns:
-            PIL Image or Tensor: Rescaled image.
-        """
-        return F.resize(img, self.size, self.interpolation, self.max_size, self.antialias), target
+        return super().forward(img), target
 
 
 class RandomHorizontalFlip(T.RandomHorizontalFlip):

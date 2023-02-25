@@ -2,15 +2,16 @@ import os.path
 import random
 import torch
 import torchvision.transforms as transforms
-import transforms as T
+from . import transforms as T
 from typing import Any, Callable, Optional, Tuple, List
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 # from torchvision.datasets.coco import CocoDetection
-from torch.utils.data.dataloader import DataLoader, RandomSampler
+from torch.utils.data.dataloader import DataLoader, RandomSampler, SequentialSampler, BatchSampler
 from collections import defaultdict
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
+from .coco_utils import get_coco, get_coco_kp
 
 class CocoDetection(VisionDataset):
     """`MS Coco Detection <https://cocodataset.org/#detection-2016>`_ Dataset.
@@ -56,6 +57,7 @@ class CocoDetection(VisionDataset):
         target = self._load_target(id)
 
         if self.transforms is not None:
+            print(target)
             image, target = self.transforms(image, target)
 
         return image, target, image_id
@@ -149,6 +151,50 @@ class CocoDataset():
             iou_type: `segm`, `bbox`, `keypoints`
         """
         cocoGt = COCO(self.coco_ann_path)
+        cocoDt = cocoGt.loadRes(dt_path)
+        cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+        cocoEval.summarize()
+
+def collate_fn(batch):
+    return tuple(zip(*batch))
+
+def get_dataset(name, image_set, transforms, data_path):
+    paths = {"coco": (data_path, get_coco, 3), "coco_kp": (data_path, get_coco_kp, 2)}
+    p, ds_fn, num_classes = paths[name]
+
+    ds = ds_fn(p, image_set=image_set, transforms=transforms)
+    return ds, num_classes
+
+
+def get_dataloader(ds_path, num_workers):
+    transforms = T.Compose([
+        T.RandomIoUCrop(),
+        T.RandomHorizontalFlip(),
+        T.PILToTensor(),
+        T.ConvertImageDtype(torch.float),
+        T.Resize((320,320))
+    ])
+    dataset, _ = get_dataset("coco", "train", transforms, ds_path)
+    dataset_test, _ = get_dataset("coco", "val", transforms, ds_path)
+    train_sampler = RandomSampler(dataset)
+    test_sampler = SequentialSampler(dataset_test)
+    train_batch_sampler = BatchSampler(train_sampler, 24, drop_last=True)
+    data_loader = DataLoader(
+        dataset, batch_sampler=train_batch_sampler, num_workers=num_workers, collate_fn=collate_fn
+    )
+    data_loader_test = DataLoader(
+        dataset_test, batch_size=1, sampler=test_sampler, num_workers=num_workers, collate_fn=collate_fn
+    )
+    return data_loader, data_loader_test
+
+def coco_eval(gt_root, dt_path, iou_type):
+        """
+        Args:
+            iou_type: `segm`, `bbox`, `keypoints`
+        """
+        cocoGt = COCO(f"{gt_root}annotations/instances_val2023.json")
         cocoDt = cocoGt.loadRes(dt_path)
         cocoEval = COCOeval(cocoGt,cocoDt,iou_type)
         cocoEval.evaluate()
