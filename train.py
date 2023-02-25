@@ -98,7 +98,7 @@ def test_in_train(epoch, model, val_loader, device):
             outputs = model(images)
             postprocess_as_ann(res_anns,targets,outputs,0.3)
     anns_to_json(res_anns,dt_path)
-    coco_eval(dt_path,'bbox')
+    coco_eval(args.ds_root,dt_path,'bbox')
 
 # def qat_test_in_train(epoch, net, valset: CocoDataset, device):
 #     dt_path = f"./eval_res/dt_anns_{epoch:03d}.json"
