@@ -3,7 +3,7 @@ import torch
 import numpy as np
 
 from model import get_quant_model, ssdlite_with_quant_weights
-from _utils import get_fixed_point
+from utils import get_fixed_point
 
 def get_quant_factors(state_dict):
     iact_scales      = []

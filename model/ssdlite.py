@@ -111,11 +111,11 @@ def get_model(device, pretrained: bool=True) -> SSD:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights=weights)
     else:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(num_classes=3)
-    if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            print("Let's use", torch.cuda.device_count(), "GPUs!")
-            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-            model = nn.DataParallel(model)
+    # if torch.cuda.is_available():
+    #     if torch.cuda.device_count() > 1:
+    #         print("Let's use", torch.cuda.device_count(), "GPUs!")
+    #         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+    #         model = nn.DataParallel(model)
     # load the model onto the computation device
     return model.to(device)
 

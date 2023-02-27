@@ -2,7 +2,7 @@ import torch
 import torchvision
 from datasets import CocoDataset
 from model import get_model, get_quant_model, qssdlite320_mobilenet_v3_large, ssdlite_with_quant_weights, ssdlite_with_weights
-from _utils import model_save, model_load, postprocess_as_ann, anns_to_json
+from .utils import model_save, model_load, postprocess_as_ann, anns_to_json
 import json
 
 def eval_model(model, valset:CocoDataset, device):
