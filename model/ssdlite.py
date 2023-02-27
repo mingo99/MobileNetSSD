@@ -133,8 +133,8 @@ def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[in
 
 def ssdlite_with_weights(path, device):
     model = get_model(device,False)
-    state_dict = torch.load(path)
-    model.load_state_dict(state_dict['model_state_dict'])
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint["model"])
     model.eval()
     return model
 
