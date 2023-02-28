@@ -101,7 +101,7 @@ def qssdlite320_mobilenet_v3_large(
     return model
 
 
-def get_model(device, pretrained: bool=True) -> SSD:
+def get_model(device, pretrained: bool=False) -> SSD:
     """
     Get the SSDLite320_MobileNet_V3_Large model.
     """
@@ -110,7 +110,7 @@ def get_model(device, pretrained: bool=True) -> SSD:
     if pretrained:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights=weights)
     else:
-        model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(num_classes=3)
+        model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
     # if torch.cuda.is_available():
     #     if torch.cuda.device_count() > 1:
     #         print("Let's use", torch.cuda.device_count(), "GPUs!")

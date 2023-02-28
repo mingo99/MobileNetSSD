@@ -60,7 +60,7 @@ def main():
     print(f"Batch Size: {BATCH_SIZE}")
     print(f"Learning Rate: {LR}")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = get_model(device, False)
+    model = get_model(device)
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
