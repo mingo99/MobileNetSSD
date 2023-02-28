@@ -4,6 +4,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from . import transforms as T
 from .coco_utils import get_coco, get_coco_kp
+from .group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 
 def collate_fn(batch):
     return tuple(zip(*batch))
@@ -15,7 +16,7 @@ def get_dataset(name, image_set, transforms, data_path):
     ds = ds_fn(p, image_set=image_set, transforms=transforms)
     return ds, num_classes
 
-def get_dataloader(ds_path, num_workers, distributed):
+def get_dataloader(ds_path, batch_size, num_workers, distributed, aspect_ratio_group_factor):
     transforms = T.Compose([
         T.RandomIoUCrop(),
         T.RandomHorizontalFlip(),
@@ -31,7 +32,13 @@ def get_dataloader(ds_path, num_workers, distributed):
     else:
         train_sampler = RandomSampler(dataset)
         test_sampler = SequentialSampler(dataset_test)
-    train_batch_sampler = BatchSampler(train_sampler, 24, drop_last=True)
+
+    if aspect_ratio_group_factor >= 0:
+        group_ids = create_aspect_ratio_groups(dataset, k=aspect_ratio_group_factor)
+        train_batch_sampler = GroupedBatchSampler(train_sampler, group_ids, batch_size)
+    else:
+        train_batch_sampler = BatchSampler(train_sampler, batch_size, drop_last=True)
+
     data_loader = DataLoader(
         dataset, batch_sampler=train_batch_sampler, num_workers=num_workers, pin_memory=True, collate_fn=collate_fn
     )

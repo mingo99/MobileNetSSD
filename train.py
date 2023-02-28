@@ -69,7 +69,7 @@ def main():
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.workers, args.distributed)
+    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.batch_size, args.workers, args.distributed, 3)
 
     parameters = [p for p in model.parameters() if p.requires_grad]
 
@@ -113,6 +113,7 @@ def main():
 
         # evaluate after every 10 epoch
         if (epoch+1) % 10 ==0:
+            evaluate(model, train_loader, device=device)
             evaluate(model, val_loader, device=device)
 
     total_time = time.time() - start_time
