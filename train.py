@@ -37,6 +37,7 @@ parser.add_argument("--print_freq", default=100, type=int, help="print frequency
 parser.add_argument("--output_dir", default="./checkpoint/normal/", type=str, help="path to save outputs")
 parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
 parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
+parser.add_argument("--aspect_ratio_group_factor", default=3, type=int)
 # Mixed precision training parameters
 parser.add_argument("--amp", default=None, action="store_true", help="Use torch.cuda.amp for mixed precision training")
 parser.add_argument(
@@ -69,7 +70,7 @@ def main():
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.batch_size, args.workers, args.distributed, 3)
+    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.batch_size, args.workers, args.distributed, args.aspect_ratio_group_factor)
 
     parameters = [p for p in model.parameters() if p.requires_grad]
 
