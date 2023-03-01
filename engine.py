@@ -101,6 +101,7 @@ def evaluate(model, data_loader, device):
         coco_evaluator.update(res)
         evaluator_time = time.time() - evaluator_time
         metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
+        break
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
@@ -111,10 +112,10 @@ def evaluate(model, data_loader, device):
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
     # 获取每个类别的AP
-    metrics = coco_evaluator.stats
+    metrics = coco_evaluator.coco_eval["bbox"].stats
     ap_by_class = {}
-    for i, category_id in enumerate(coco_evaluator.params.catIds):
-        category_name = coco_evaluator.cocoGt.cats[category_id]['name']
+    for i, category_id in enumerate(coco_evaluator.coco_eval["bbox"].params.catIds):
+        category_name = coco_evaluator.coco_eval["bbox"].cocoGt.cats[category_id]['name']
         ap_by_class[category_name] = metrics[2 + i * 3]
     print(ap_by_class)
     torch.set_num_threads(n_threads)
