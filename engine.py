@@ -110,5 +110,12 @@ def evaluate(model, data_loader, device):
     # accumulate predictions from all images
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
+    # 获取每个类别的AP
+    metrics = coco_evaluator.stats
+    ap_by_class = {}
+    for i, category_id in enumerate(coco_evaluator.params.catIds):
+        category_name = coco_evaluator.cocoGt.cats[category_id]['name']
+        ap_by_class[category_name] = metrics[2 + i * 3]
+    print(ap_by_class)
     torch.set_num_threads(n_threads)
     return coco_evaluator

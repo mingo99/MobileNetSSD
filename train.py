@@ -43,9 +43,10 @@ parser.add_argument("--amp", default=None, action="store_true", help="Use torch.
 parser.add_argument(
         "--test-only",
         default=False,
+        type=bool,
         dest="test_only",
         help="Only test the model",
-        action="store_true",
+        # action="store_true",
     )
 args = parser.parse_args()
 
@@ -114,7 +115,7 @@ def main():
 
         # evaluate after every 10 epoch
         if (epoch+1) % 10 ==0:
-            evaluate(model, train_loader, device=device)
+            # evaluate(model, train_loader, device=device)
             evaluate(model, val_loader, device=device)
 
     total_time = time.time() - start_time
