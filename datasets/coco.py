@@ -22,7 +22,7 @@ def get_dataloader(ds_path, batch_size, num_workers, distributed, aspect_ratio_g
         T.RandomHorizontalFlip(),
         T.PILToTensor(),
         T.ConvertImageDtype(torch.float),
-        T.Resize((320,320))
+        # T.Resize((320,320))
     ])
     dataset, _ = get_dataset("coco", "train", transforms, ds_path)
     dataset_test, _ = get_dataset("coco", "val", transforms, ds_path)
