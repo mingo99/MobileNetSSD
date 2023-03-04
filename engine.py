@@ -101,7 +101,6 @@ def evaluate(model, data_loader, device):
         coco_evaluator.update(res)
         evaluator_time = time.time() - evaluator_time
         metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
-        break
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()

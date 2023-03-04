@@ -6,4 +6,4 @@ date
 module load anaconda/2021.05
 source activate pytorch
 export PYTHONUNBUFFERED=1
-torchrun --nproc_per_node=8 train.py -e=$1 -b=$2 -n=$3 -lr=$4 -ds=/dev/shm/cocofb/
+torchrun --nproc_per_node=8 train.py -e=$1 -b=$2 -n=$3 -lr=$4 --resume=$5 -ds=/dev/shm/cocofb/ -y=2017 --eval_freq=5

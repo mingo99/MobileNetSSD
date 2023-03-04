@@ -9,23 +9,22 @@ from .group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampl
 def collate_fn(batch):
     return tuple(zip(*batch))
 
-def get_dataset(name, image_set, transforms, data_path):
+def get_dataset(name, image_set, year, transforms, data_path):
     paths = {"coco": (data_path, get_coco, 3), "coco_kp": (data_path, get_coco_kp, 2)}
     p, ds_fn, num_classes = paths[name]
 
-    ds = ds_fn(p, image_set=image_set, transforms=transforms)
+    ds = ds_fn(p, image_set=image_set, year=year, transforms=transforms)
     return ds, num_classes
 
-def get_dataloader(ds_path, batch_size, num_workers, distributed, aspect_ratio_group_factor):
+def get_dataloader(ds_path, year, batch_size, num_workers, distributed, aspect_ratio_group_factor):
     transforms = T.Compose([
         T.RandomIoUCrop(),
         T.RandomHorizontalFlip(),
         T.PILToTensor(),
-        T.ConvertImageDtype(torch.float),
-        # T.Resize((320,320))
+        T.ConvertImageDtype(torch.float)
     ])
-    dataset, _ = get_dataset("coco", "train", transforms, ds_path)
-    dataset_test, _ = get_dataset("coco", "val", transforms, ds_path)
+    dataset, _ = get_dataset("coco", "train", year, transforms, ds_path)
+    dataset_test, _ = get_dataset("coco", "val", year, transforms, ds_path)
     if distributed:
         train_sampler = DistributedSampler(dataset)
         test_sampler = DistributedSampler(dataset_test, shuffle=False)

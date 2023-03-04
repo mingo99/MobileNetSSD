@@ -16,13 +16,13 @@ from torchvision.models.detection.ssdlite import(
 from torchvision.models.quantization.utils import _fuse_modules, _replace_relu
 from torchvision.models.mobilenetv3 import MobileNet_V3_Large_Weights
 
-from ._utils import *
+from .utils import *
 
 @handle_legacy_interface(
     weights=("pretrained", SSDLite320_MobileNet_V3_Large_Weights.COCO_V1),
     weights_backbone=("pretrained_backbone", MobileNet_V3_Large_Weights.IMAGENET1K_V1),
 )
-def qssdlite320_mobilenet_v3_large(
+def ssdlite320_mobilenet_v3_large(
     *,
     weights: Optional[SSDLite320_MobileNet_V3_Large_Weights] = None,
     progress: bool = True,
@@ -31,7 +31,47 @@ def qssdlite320_mobilenet_v3_large(
     trainable_backbone_layers: Optional[int] = None,
     norm_layer: Optional[Callable[..., nn.Module]] = None,
     **kwargs: Any,
-) -> QuantizableSSD:
+) -> CustomSSD:
+    """SSDlite model architecture with input size 320x320 and a MobileNetV3 Large backbone, as
+    described at `Searching for MobileNetV3 <https://arxiv.org/abs/1905.02244>`__ and
+    `MobileNetV2: Inverted Residuals and Linear Bottlenecks <https://arxiv.org/abs/1801.04381>`__.
+
+    .. betastatus:: detection module
+
+    See :func:`~torchvision.models.detection.ssd300_vgg16` for more details.
+
+    Example:
+
+        >>> model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights=SSDLite320_MobileNet_V3_Large_Weights.DEFAULT)
+        >>> model.eval()
+        >>> x = [torch.rand(3, 320, 320), torch.rand(3, 500, 400)]
+        >>> predictions = model(x)
+
+    Args:
+        weights (:class:`~torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights`, optional): The
+            pretrained weights to use. See
+            :class:`~torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights` below for
+            more details, and possible values. By default, no pre-trained
+            weights are used.
+        progress (bool, optional): If True, displays a progress bar of the
+            download to stderr. Default is True.
+        num_classes (int, optional): number of output classes of the model
+            (including the background).
+        weights_backbone (:class:`~torchvision.models.MobileNet_V3_Large_Weights`, optional): The pretrained
+            weights for the backbone.
+        trainable_backbone_layers (int, optional): number of trainable (not frozen) layers
+            starting from final block. Valid values are between 0 and 6, with 6 meaning all
+            backbone layers are trainable. If ``None`` is passed (the default) this value is
+            set to 6.
+        norm_layer (callable, optional): Module specifying the normalization layer to use.
+        **kwargs: parameters passed to the ``torchvision.models.detection.ssd.SSD``
+            base class. Please refer to the `source code
+            <https://github.com/pytorch/vision/blob/main/torchvision/models/detection/ssd.py>`_
+            for more details about this class.
+
+    .. autoclass:: torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights
+        :members:
+    """
 
     weights = SSDLite320_MobileNet_V3_Large_Weights.verify(weights)
     weights_backbone = MobileNet_V3_Large_Weights.verify(weights_backbone)
@@ -41,7 +81,7 @@ def qssdlite320_mobilenet_v3_large(
 
     if weights is not None:
         weights_backbone = None
-        num_classes = _ovewrite_value_param(num_classes, len(weights.meta["categories"]))
+        num_classes = _ovewrite_value_param("num_classes", num_classes, len(weights.meta["categories"]))
     elif num_classes is None:
         num_classes = 91
 
@@ -55,7 +95,9 @@ def qssdlite320_mobilenet_v3_large(
     if norm_layer is None:
         norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.03)
 
-    backbone = mobilenet_v3_large()
+    backbone = torchvision.models.mobilenet.mobilenet_v3_large(
+        weights=weights_backbone, progress=progress, norm_layer=norm_layer, reduced_tail=reduce_tail, **kwargs
+    )
     if weights_backbone is None:
         # Change the default initialization scheme if not pretrained
         _normal_init(backbone)
@@ -76,7 +118,7 @@ def qssdlite320_mobilenet_v3_large(
 
     defaults = {
         "score_thresh": 0.001,
-        "nms_thresh": 0.55,
+        "nms_thresh": 0.50,
         "detections_per_img": 300,
         "topk_candidates": 300,
         # Rescale the input in a way compatible to the backbone:
@@ -85,7 +127,7 @@ def qssdlite320_mobilenet_v3_large(
         "image_std": [0.5, 0.5, 0.5],
     }
     kwargs: Any = {**defaults, **kwargs}
-    model = QuantizableSSD(
+    model = CustomSSD(
         backbone,
         anchor_generator,
         size,
@@ -93,13 +135,11 @@ def qssdlite320_mobilenet_v3_large(
         head=SSDLiteHead(out_channels, num_anchors, num_classes, norm_layer),
         **kwargs,
     )
-    _replace_relu(model)
-    # Load weights
-    if weights is not None:
-        print("Load pretrained weights...")
-        model.load_state_dict(weights.get_state_dict(progress=progress))
-    return model
 
+    if weights is not None:
+        model.load_state_dict(weights.get_state_dict(progress=progress))
+
+    return model
 
 def get_model(device, pretrained: bool=False) -> SSD:
     """
@@ -109,8 +149,10 @@ def get_model(device, pretrained: bool=False) -> SSD:
     weights=torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
     if pretrained:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights=weights)
+        # model = ssdlite320_mobilenet_v3_large(weights=weights)
     else:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
+        # model = ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
     # if torch.cuda.is_available():
     #     if torch.cuda.device_count() > 1:
     #         print("Let's use", torch.cuda.device_count(), "GPUs!")
@@ -119,46 +161,14 @@ def get_model(device, pretrained: bool=False) -> SSD:
     # load the model onto the computation device
     return model.to(device)
 
-def get_quant_model(device, path, calibrate: bool=False, batch_size: Optional[int]=1, epochs: Optional[int]=1) -> QuantizableSSD:
-    """
-    Get the quantizable SSDLite320_MobileNet_V3_Large model.
-    """
-    # load the model 
-    weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-    model = qssdlite320_mobilenet_v3_large(pretrained=True,weights=weights)
-    # Quantize model
-    quantize_model(model,'fbgemm',path,calibrate,batch_size,epochs)
-    # load the model onto the computation device
-    return model.to(device)
-
-def ssdlite_with_weights(path, device):
-    model = get_model(device,False)
-    checkpoint = torch.load(path)
-    model.load_state_dict(checkpoint["model"])
+def ssdlite_with_weights(path, device, custom=True):
+    if custom:
+        model = get_model(device,False)
+        checkpoint = torch.load(path)
+        model.load_state_dict(checkpoint["model"])
+    else:
+        model = get_model(device, True)
+        state_dict = torch.load(path)
+        model.load_state_dict(state_dict)
     model.eval()
-    return model
-
-def ssdlite_with_quant_weights(path):
-    model = qssdlite320_mobilenet_v3_large()
-    model.eval()
-    model.qconfig = torch.quantization.QConfig(  # type: ignore[assignment]
-            activation=torch.quantization.default_observer,
-            weight=torch.quantization.default_per_channel_weight_observer,
-        )
-    model.fuse_model()
-    torch.quantization.prepare(model, inplace=True)
-    state_dict = torch.load(path)
-    model.load_state_dict(state_dict)
-    torch.quantization.convert(model, inplace=True)
-    return model
-
-def ssdlite_with_qat_weights(path):
-    model = qssdlite320_mobilenet_v3_large()
-    model.fuse_model(is_qat=True)
-    model.qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
-    torch.quantization.prepare_qat(model, inplace=True)
-    state_dict = torch.load(path)
-    model.load_state_dict(state_dict['model_state_dict'])
-    model.eval()
-    torch.quantization.convert(model, inplace=True)
     return model

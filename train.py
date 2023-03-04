@@ -1,36 +1,24 @@
+import os
+import time
+import datetime
+
+import torch
+import torch.optim as optim
+
+import argparse
+
 from datasets import get_dataloader
 from model import get_model
 import utils
 from engine import evaluate, train_one_epoch
-from typing import List
-from tqdm import tqdm
-
-import cv2
-from PIL import Image
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchvision
-import copy
-
-import datetime
-import os
-import time
-
-import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-e', '--epochs', default=100, type=int, 
-                    help='Indicate number of total train epochs')
-parser.add_argument('-b', '--batch_size', default=32, type=int,
-                    help='Batch size for training')
-parser.add_argument('-n', '--workers', default=1, type=int,
-                    help='Number of dataloader workers.')
-parser.add_argument('-lr', '--learning_rate', default=0.01, type=float,
-                    help='Learning rate')
-parser.add_argument('-ds', '--ds_root', default='../../data/cocofb/', type=str,
-                    help='The root path of dataset.')
+parser.add_argument('-e', '--epochs', default=100, type=int, help='Indicate number of total train epochs')
+parser.add_argument('-b', '--batch_size', default=32, type=int, help='Batch size for training')
+parser.add_argument('-n', '--workers', default=1, type=int, help='Number of dataloader workers.')
+parser.add_argument('-lr', '--learning_rate', default=0.01, type=float, help='Learning rate')
+parser.add_argument('-ds', '--ds_root', default='../../data/cocofb/', type=str, help='The root path of dataset.')
+parser.add_argument('-y', '--ds_year', default=2014, type=str, help='The version of COCO.')
 parser.add_argument('--world-size', default=4, type=int, help='number of distributed processes')
 parser.add_argument('--local_rank', type=int, help='rank of distributed processes')
 parser.add_argument("--print_freq", default=100, type=int, help="print frequency")
@@ -40,6 +28,7 @@ parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
 parser.add_argument("--aspect_ratio_group_factor", default=3, type=int)
 # Mixed precision training parameters
 parser.add_argument("--amp", default=None, action="store_true", help="Use torch.cuda.amp for mixed precision training")
+parser.add_argument("--eval_freq", default=10, type=int, help="evaluation frequency")
 parser.add_argument(
         "--test-only",
         default=False,
@@ -50,17 +39,9 @@ parser.add_argument(
     )
 args = parser.parse_args()
 
-EPOCHS = args.epochs
-BATCH_SIZE = args.batch_size
-LR = args.learning_rate
-
 def main():
+    eval_epochs = [epoch for epoch in range(args.epochs) if (epoch+1)%args.eval_freq==0]
     utils.init_distributed_mode(args)
-    print('Training SSD on: coco')
-    print('Using the specified args:')
-    print(f"Epochs: {EPOCHS}")
-    print(f"Batch Size: {BATCH_SIZE}")
-    print(f"Learning Rate: {LR}")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = get_model(device)
     if args.distributed:
@@ -71,13 +52,13 @@ def main():
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.batch_size, args.workers, args.distributed, args.aspect_ratio_group_factor)
+    train_loader, val_loader, train_sampler = get_dataloader(args.ds_root, args.ds_year, args.batch_size, args.workers, args.distributed, args.aspect_ratio_group_factor)
 
     parameters = [p for p in model.parameters() if p.requires_grad]
 
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
-    optimizer = optim.SGD(parameters, lr=LR, momentum=0.9, weight_decay=4e-5)
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+    optimizer = optim.SGD(parameters, lr=args.learning_rate, momentum=0.9, weight_decay=4e-5)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu")
@@ -92,7 +73,7 @@ def main():
         torch.backends.cudnn.deterministic = True
         evaluate(model, val_loader, device=device)
         return
-
+    print(args)
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
@@ -113,8 +94,8 @@ def main():
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
-        # evaluate after every 10 epoch
-        if (epoch+1) % 10 ==0:
+        # evaluate when in eval_epochs
+        if epoch in eval_epochs:
             # evaluate(model, train_loader, device=device)
             evaluate(model, val_loader, device=device)
 
