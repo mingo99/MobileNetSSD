@@ -76,7 +76,7 @@ class CustomSSD(SSD):
 
         # Calculate classification loss
         num_classes = cls_logits.size(-1)
-        class_weights = torch.FloatTensor([1, 1, 4]).to(cls_logits.device)
+        class_weights = torch.FloatTensor([0.1, 1, 2]).to(cls_logits.device)
         cls_loss = F.cross_entropy(cls_logits.view(-1, num_classes), cls_targets.view(-1), reduction="none", weight=class_weights).view(
             cls_targets.size()
         )

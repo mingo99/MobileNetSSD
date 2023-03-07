@@ -5,6 +5,7 @@ import time
 import torch
 import torchvision.models.detection.mask_rcnn
 import utils
+import numpy as np
 from datasets import CocoEvaluator
 from datasets.coco_utils import get_coco_api_from_dataset
 
@@ -73,7 +74,7 @@ def _get_iou_types(model):
 
 
 @torch.inference_mode()
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, device, print_freq):
     n_threads = torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
@@ -85,7 +86,7 @@ def evaluate(model, data_loader, device):
     coco = get_coco_api_from_dataset(data_loader.dataset)
     iou_types = _get_iou_types(model)
     coco_evaluator = CocoEvaluator(coco, iou_types)
-    for images, targets in metric_logger.log_every(data_loader, 100, header):
+    for images, targets in metric_logger.log_every(data_loader, print_freq, header):
         images = list(img.to(device) for img in images)
 
         if torch.cuda.is_available():
@@ -111,11 +112,15 @@ def evaluate(model, data_loader, device):
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
     # 获取每个类别的AP
-    metrics = coco_evaluator.coco_eval["bbox"].stats
-    ap_by_class = {}
-    for i, category_id in enumerate(coco_evaluator.coco_eval["bbox"].params.catIds):
-        category_name = coco_evaluator.coco_eval["bbox"].cocoGt.cats[category_id]['name']
-        ap_by_class[category_name] = metrics[2 + i * 3]
-    print(ap_by_class)
+    cocoEval = coco_evaluator.coco_eval['bbox']
+    print("mAP(IoU=0.5) for each category:")
+    for catId in cocoEval.params.catIds:
+        s = cocoEval.eval['precision'][0,:,catId-1,0,2]
+        cat_name = cocoEval.cocoGt.cats[catId]['name']
+        if len(s[s>-1])==0:
+            mean_s = -1
+        else:
+            mean_s = np.mean(s[s>-1])
+        print(f"{cat_name}:\t{mean_s}")
     torch.set_num_threads(n_threads)
     return coco_evaluator

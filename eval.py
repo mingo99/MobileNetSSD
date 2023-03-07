@@ -1,44 +1,54 @@
 import torch
-import torchvision
-from datasets import CocoDataset
-from model import get_model, get_quant_model, qssdlite320_mobilenet_v3_large, ssdlite_with_quant_weights, ssdlite_with_weights
-from .utils import model_save, model_load, postprocess_as_ann, anns_to_json
-import json
+import numpy as np
+from datasets import get_dataloader
+from model import get_model, ssdlite_with_weights
+from utils import postprocess_as_ann, anns_to_json
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+from tqdm import tqdm
 
-def eval_model(model, valset:CocoDataset, device):
+def coco_eval(dt_path):
+    # 加载ground truth数据
+    annFile = "../../data/cocofb/annotations/instances_val2017.json"
+    cocoGt = COCO(annFile)
+    cocoDt = cocoGt.loadRes(dt_path)
+
+    # 创建评估器
+    cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
+
+    # 运行评估
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+    
+    # print(cocoEval.eval['precision'][:,0,1,0,2])
+    for catId in cocoEval.params.catIds:
+        s = cocoEval.eval['precision'][0,:,catId-1,0,2]
+        if len(s[s>-1])==0:
+            mean_s = -1
+        else:
+            mean_s = np.mean(s[s>-1])
+        print(mean_s)
+
+def eval_model(model, device):
     dt_path = f"./eval_res/ssdlite_dt_anns.json"
-    val_loader = valset.get_coco_dataloader(32)
-    model.eval()
+    _, val_loader, _ = get_dataloader("../../data/cocofb", 2017, 24, 8, False, -1)
+    model = ssdlite_with_weights("./checkpoint/normal/checkpoint.pth", device)
     model = model.to(device)
     res_anns = []
     with torch.no_grad():
-        for i, data in enumerate(val_loader):
-            print(f"Test {i}th batch...")
-            # 数据读取
-            length = len(val_loader)
+        for data in tqdm(val_loader, desc="Test Image"):
             images, targets = data
-            images = images.to(device)
+            images = list(img.to(device) for img in images)
             outputs = model(images)
-            postprocess_as_ann(res_anns,targets,outputs,0.1)
+            postprocess_as_ann(res_anns,targets,outputs,0.3)
         print("Test done!")
     anns_to_json(res_anns,dt_path)
-    valset.coco_eval(dt_path,'bbox')
+    coco_eval(dt_path)
 
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # model = get_model(device, True)
-    # weights=torchvision.models.detection.SSD300_VGG16_Weights.DEFAULT
-    # model = torchvision.models.detection.ssd300_vgg16(pretrained=True,weights=weights)
     model = get_model(device)
-    valset = CocoDataset('../../data/cocofb/', 2023, 'val')
-    eval_model(model, valset, device)
+    eval_model(model, device)
     # dt_path = f"./eval_res/ssdlite_dt_anns.json"
-    # dt_anns = json.load(open(dt_path, 'r'))
-    # for ann in dt_anns:
-    #     for i, loc in enumerate(ann['bbox']):
-    #         ann['bbox'][i] = round(loc,2)
-    #     ann['score'] = round(ann['score'],2)
-    # with open(f"./eval_res/ssdlite_dt_anns_new.json", 'w') as f:
-    #     json.dump(dt_anns, f, indent=4)
-    # dt_path = f"./eval_res/result.json"
-    # coco_eval(dt_path,'bbox')
+    # coco_eval(dt_path)

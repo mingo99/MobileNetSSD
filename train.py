@@ -9,8 +9,8 @@ import argparse
 
 from datasets import get_dataloader
 from model import get_model
-import utils
 from engine import evaluate, train_one_epoch
+import utils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-e', '--epochs', default=100, type=int, help='Indicate number of total train epochs')
@@ -21,7 +21,7 @@ parser.add_argument('-ds', '--ds_root', default='../../data/cocofb/', type=str, 
 parser.add_argument('-y', '--ds_year', default=2014, type=str, help='The version of COCO.')
 parser.add_argument('--world-size', default=4, type=int, help='number of distributed processes')
 parser.add_argument('--local_rank', type=int, help='rank of distributed processes')
-parser.add_argument("--print_freq", default=100, type=int, help="print frequency")
+parser.add_argument("--print_freq", default=50, type=int, help="print frequency")
 parser.add_argument("--output_dir", default="./checkpoint/normal/", type=str, help="path to save outputs")
 parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
 parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
@@ -71,7 +71,7 @@ def main():
 
     if args.test_only:
         torch.backends.cudnn.deterministic = True
-        evaluate(model, val_loader, device=device)
+        evaluate(model, val_loader, device, args.print_freq)
         return
     print(args)
     print("Start training")
@@ -79,7 +79,7 @@ def main():
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, optimizer, train_loader, device, epoch, 20, None)
+        train_one_epoch(model, optimizer, train_loader, device, epoch, args.print_freq, None)
         lr_scheduler.step()
         if args.output_dir:
             checkpoint = {
@@ -97,7 +97,7 @@ def main():
         # evaluate when in eval_epochs
         if epoch in eval_epochs:
             # evaluate(model, train_loader, device=device)
-            evaluate(model, val_loader, device=device)
+            evaluate(model, val_loader, device, args.print_freq)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
