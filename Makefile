@@ -1,11 +1,11 @@
 run_server:
-	sbatch --gpus=8 run.sh 660 24 8 0.15 ""
+	sbatch --gpus=${GPUS} run.sh ${GPUS} 660 24 8 0.15 ""
 
 run_gpuc128:
-	sbatch --gpus=${GPUS} -p gpu_c128 run.sh ${GPUS} 660 24 8 0.15 ""
+	sbatch --gpus=8 -p gpu_c128 run.sh 8 660 24 8 0.15 ""
 
 run_resume:
-	sbatch --gpus=${GPUS} -p gpu_c128 run.sh ${GPUS} 660 24 8 0.15 "./checkpoint/normal/checkpoint.pth"
+	sbatch --gpus=8 -p gpu_c128 run.sh 8 660 24 8 0.15 "./checkpoint/normal/checkpoint.pth"
 
 run_mm:
 	sbatch -N 2 --gres=gpu:8 --qos=gpugpu run.sh 220 24 16 0.15 ""
