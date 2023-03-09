@@ -24,5 +24,9 @@ def simple_test():
         # detect_image(args['input'],args['threshold'],args['quantize'],True,"./weights/ssdlite320_mobilenet_v3_large_coco-a79551df.pth")
         detect_image(args['input'],args['threshold'],args['quantize'],True,args["path"])
 
+def cv_ssd():
+    import cv2
+    cv2.FaceDetectorYN.create
+
 if __name__ == "__main__":
     simple_test()

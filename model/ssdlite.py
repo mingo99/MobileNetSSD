@@ -15,6 +15,7 @@ from torchvision.models.detection.ssdlite import(
 )
 from torchvision.models.quantization.utils import _fuse_modules, _replace_relu
 from torchvision.models.mobilenetv3 import MobileNet_V3_Large_Weights
+from torchvision.models.detection.ssd import SSD
 
 from .utils import *
 
@@ -31,7 +32,7 @@ def ssdlite320_mobilenet_v3_large(
     trainable_backbone_layers: Optional[int] = None,
     norm_layer: Optional[Callable[..., nn.Module]] = None,
     **kwargs: Any,
-) -> CustomSSD:
+) -> SSD:
     """SSDlite model architecture with input size 320x320 and a MobileNetV3 Large backbone, as
     described at `Searching for MobileNetV3 <https://arxiv.org/abs/1905.02244>`__ and
     `MobileNetV2: Inverted Residuals and Linear Bottlenecks <https://arxiv.org/abs/1801.04381>`__.
@@ -108,7 +109,11 @@ def ssdlite320_mobilenet_v3_large(
     )
 
     size = (320, 320)
-    anchor_generator = DefaultBoxGenerator([[2, 3] for _ in range(6)], min_ratio=0.2, max_ratio=0.95)
+    anchor_generator = DefaultBoxGenerator(
+        [[1.7, 1.5, 1.9],[1.9, 1.7, 2.1],[1.8, 1.6, 2.0],[2.2, 2.0, 2.4],[2.5,2.3, 2.7],[1.7, 1.5, 1.9]], 
+        # scales=[0.03, 0.05, 0.08, 0.15, 0.3, 0.6, 0.9]
+        scales=[0.05, 0.08, 0.15, 0.3, 0.6, 0.9, 1.05]
+    )
     out_channels = det_utils.retrieve_out_channels(backbone, size)
     num_anchors = anchor_generator.num_anchors_per_location()
     if len(out_channels) != len(anchor_generator.aspect_ratios):
@@ -127,7 +132,7 @@ def ssdlite320_mobilenet_v3_large(
         "image_std": [0.5, 0.5, 0.5],
     }
     kwargs: Any = {**defaults, **kwargs}
-    model = CustomSSD(
+    model = SSD(
         backbone,
         anchor_generator,
         size,
@@ -151,8 +156,9 @@ def get_model(device, pretrained: bool=False) -> SSD:
         model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights=weights)
         # model = ssdlite320_mobilenet_v3_large(weights=weights)
     else:
-        model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
-        # model = ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
+        # model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
+        # model = torchvision.models.detection.ssd300_vgg16(weights_backbone=torchvision.models.detection.SSD300_VGG16_Weights,num_classes=3)
+        model = ssdlite320_mobilenet_v3_large(weights_backbone=MobileNet_V3_Large_Weights.DEFAULT,num_classes=3)
     # if torch.cuda.is_available():
     #     if torch.cuda.device_count() > 1:
     #         print("Let's use", torch.cuda.device_count(), "GPUs!")

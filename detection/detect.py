@@ -28,7 +28,7 @@ def detect_image(input, threshold, quantize, load_weight=False, path=None):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if load_weight:
             print(f"The computation device is {device} and path of weights is {path}.")
-            model = ssdlite_with_weights(path, device)
+            model = ssdlite_with_weights(path, device, True)
         else:
             print(f"The computation device is {device}.")
             model = get_model(device, False)

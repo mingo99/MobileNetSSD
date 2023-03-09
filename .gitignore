@@ -4,3 +4,12 @@ log/
 checkpoint/
 eval_res/
 server_log/
+*.pyc
+.idea/
+dataset/*
+!dataset/lfw_test.zip
+!dataset/test.jpg
+save_model/*
+!save_model/mtcnn
+!save_model/mobilefacenet.pth
+*.onnx
